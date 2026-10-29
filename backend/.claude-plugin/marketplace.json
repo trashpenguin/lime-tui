@@ -1,0 +1,16 @@
+{
+  "name": "spotatui",
+  "owner": {
+    "name": "LargeModGames",
+    "url": "https://github.com/LargeModGames"
+  },
+  "plugins": [
+    {
+      "name": "spotatui",
+      "source": "./agent-plugin",
+      "description": "Turn any MCP-capable coding agent into a DJ for spotatui, the terminal and desktop music player.",
+      "version": "0.2.0",
+      "license": "MIT"
+    }
+  ]
+}

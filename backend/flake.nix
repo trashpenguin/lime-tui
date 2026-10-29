@@ -1,0 +1,92 @@
+{
+  description = "Terminal music player for Spotify, local files, Subsonic, radio, YouTube, Qobuz";
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    flake-utils.url = "github:numtide/flake-utils";
+  };
+  outputs =
+    {
+      self,
+      nixpkgs,
+      flake-utils,
+    }:
+    # nixpkgs 26.11 dropped x86_64-darwin; Intel Macs use the release tarball.
+    flake-utils.lib.eachSystem [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" ] (
+      system:
+      let
+        pkgs = import nixpkgs {
+          inherit system;
+        };
+        cargoVersion = (builtins.fromTOML (builtins.readFile ./Cargo.toml)).package.version;
+        commitHash = toString (self.shortRev or self.dirtyShortRev or self.lastModified or "dirty");
+        nativeBuildInputs = with pkgs; [
+          pkg-config
+          patchelf
+          llvmPackages.clang
+          llvmPackages.libclang
+        ];
+        buildInputs =
+          with pkgs;
+          [
+            openssl
+          ]
+          ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux [
+            alsa-lib
+            dbus
+            pipewire
+          ]
+          # Build inputs for nix-darwin
+          ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
+            # macOS specific dependencies - use latest supported Apple SDK
+            pkgs.apple-sdk
+            pkgs.portaudio
+          ];
+      in
+      {
+        # Build dependencies for rust
+        packages = {
+          default = pkgs.rustPlatform.buildRustPackage {
+            pname = "spotatui";
+            version = "${cargoVersion}-${commitHash}";
+            src = self;
+
+            cargoLock = {
+              lockFile = ./Cargo.lock;
+            };
+            inherit nativeBuildInputs buildInputs;
+            meta = with pkgs.lib; {
+              description = "Terminal music player for Spotify, local files, Subsonic, radio, YouTube, Qobuz";
+              homepage = "https://github.com/LargeModGames/spotatui";
+              license = licenses.mit;
+              mainProgram = "spotatui";
+            };
+          };
+          # Alias to reference it with .spotatui instead of default
+          spotatui = self.packages.${system}.default;
+        };
+
+        # Execute with `nix run github:LargeModGames/spotatui`
+        apps = {
+          default = {
+            type = "app";
+            program = "${self.packages.${system}.default}/bin/spotatui";
+          };
+        };
+
+        # Devtools for nix develop
+        devShells.default = pkgs.mkShell {
+          nativeBuildInputs =
+            nativeBuildInputs
+            ++ (with pkgs; [
+              rustc
+              cargo
+              rust-analyzer
+              rustfmt
+              clippy
+            ]);
+          inherit buildInputs;
+          LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
+        };
+      }
+    );
+}

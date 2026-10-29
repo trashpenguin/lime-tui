@@ -1,0 +1,26 @@
+# Generated build artifacts
+**/target/
+**/dist/
+**/node_modules/
+**/__pycache__/
+*.exe
+*.zip
+*.syso
+*.res
+*.pyc
+
+# Private credentials and local runtime data
+.env
+.env.*
+!.env.example
+*.pfx
+*.p12
+*.key
+**/credentials.json
+**/credentials.dpapi
+**/lastfm.dpapi
+**/pomme_queue.json
+**/search-history.json
+**/listening-stats.json
+**/protocol-smoke-profile/
+.DS_Store

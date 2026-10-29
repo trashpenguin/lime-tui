@@ -1,0 +1,45 @@
+{
+  "@context": "https://openvex.dev/ns/v0.2.0",
+  "@id": "urn:uuid:b6348bbd-e920-55ce-84b6-c62325ca5a8c",
+  "author": "Lime TUI local release review",
+  "timestamp": "2026-10-29T00:00:00Z",
+  "version": 1,
+  "statements": [
+    {
+      "vulnerability": {
+        "name": "GHSA-qwgh-2vcv-g2f7"
+      },
+      "products": [
+        {
+          "@id": "pkg:generic/lime-tui@1.0.0?arch=x86_64&os=windows",
+          "subcomponents": [
+            {
+              "@id": "pkg:cargo/block-buffer@0.10.4"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "The maintainer advisory explicitly affects >=0.11.0,<0.12.1. Version 0.10.4 predates the inline cursor implementation. OSV currently overmatches the older version. Version 0.12.0 was upgraded to 0.12.1."
+    },
+    {
+      "vulnerability": {
+        "name": "RUSTSEC-2023-0071"
+      },
+      "products": [
+        {
+          "@id": "pkg:generic/lime-tui@1.0.0?arch=x86_64&os=windows",
+          "subcomponents": [
+            {
+              "@id": "pkg:cargo/rsa@0.9.10"
+            }
+          ]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The selected Windows graph reaches rsa only through librespot-core. Its sole production use imports RsaPublicKey, BigUint and Pkcs1v15Sign, then verifies the server handshake signature with a public modulus/exponent. Lime does not create an RSA private key or call RSA private-key decryption/signing. The Marvin private-key timing leak therefore has no secret private key or vulnerable private operation in this application path. This assessment is limited to the pinned feature graph and reviewed source hashes; it is not an upstream patch."
+    }
+  ]
+}

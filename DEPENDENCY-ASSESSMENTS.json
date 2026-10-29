@@ -1,0 +1,43 @@
+{
+  "review_date": "2026-10-29",
+  "target": "x86_64-pc-windows-msvc",
+  "features": [
+    "pomme-bridge"
+  ],
+  "cargo_lock_sha256": "db4258ac88ad1d037b0874d39594859362f47a44abeb001291fff6802f623b65",
+  "assessments": [
+    {
+      "package": "block-buffer",
+      "version": "0.10.4",
+      "id": "GHSA-qwgh-2vcv-g2f7",
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "The maintainer advisory explicitly affects >=0.11.0,<0.12.1. Version 0.10.4 predates the inline cursor implementation. OSV currently overmatches the older version. Version 0.12.0 was upgraded to 0.12.1.",
+      "references": [
+        "https://github.com/RustCrypto/utils/security/advisories/GHSA-qwgh-2vcv-g2f7"
+      ],
+      "evidence_sha256": {}
+    },
+    {
+      "package": "rsa",
+      "version": "0.9.10",
+      "id": "RUSTSEC-2023-0071",
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The selected Windows graph reaches rsa only through librespot-core. Its sole production use imports RsaPublicKey, BigUint and Pkcs1v15Sign, then verifies the server handshake signature with a public modulus/exponent. Lime does not create an RSA private key or call RSA private-key decryption/signing. The Marvin private-key timing leak therefore has no secret private key or vulnerable private operation in this application path. This assessment is limited to the pinned feature graph and reviewed source hashes; it is not an upstream patch.",
+      "references": [
+        "https://rustsec.org/advisories/RUSTSEC-2023-0071.html"
+      ],
+      "evidence_sha256": {
+        "vendor/spotatui-librespot-core/src/connection/handshake.rs": "c060e7cadbb19da8d7be2501c3d04a63145a306f21d21ae091c74e607a1ad67d",
+        "vendor/spotatui-librespot-core/Cargo.toml": "daaab12341965540e5df264a8b45d50c04c30db8ae7f9562ba15e081d11b7637",
+        "Cargo.toml": "09e53d2c0902f45a859163d4362298d21d12c7f9bc2fe867c9810a5266236f10",
+        "build.rs": "9317b1f07cdb5b53dafc306d6e580ee69b7566699d29b8aac846f6b1031f641b"
+      },
+      "source_tree_sha256": {
+        "src": "dbbf8b5da26249feed1ea0561ce2e1694954018c0b8e444d7b414d5dad9effd6",
+        "vendor/spotatui-librespot-core/src": "5180e840530e5c29e708f6de96fdedd2e6b8301ad53ce00aa26383e069f4de94"
+      }
+    }
+  ]
+}

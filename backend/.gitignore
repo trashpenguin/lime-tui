@@ -1,0 +1,38 @@
+/target
+**/*.rs.bk
+
+.DS_store
+.env
+.spotify_token_cache.json
+.cached_device_id.txt
+spotify-tui.sketch
+
+spt*.txt
+*.snap
+.ci/lp-creds
+snapcraft-login
+secrets.tar
+
+*.swp
+tags
+
+.idea/
+.vscode/
+.cursor/
+.claude
+
+# Local cargo config (platform-specific settings)
+.cargo/
+
+# build artifacts from the worker-relay subproject
+worker-relay/node_modules/
+/result
+
+# build artifacts from the gui frontend
+gui/node_modules/
+.github/scripts/node_modules/
+gui/src/node_modules/
+gui/dist/
+gui/shots/
+gui/test-results/
+gui/playwright-report/

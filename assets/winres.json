@@ -1,0 +1,34 @@
+{
+  "RT_GROUP_ICON": {
+    "APP": {
+      "0000": "lime.ico"
+    }
+  },
+  "RT_MANIFEST": {
+    "#1": {
+      "0409": "lime.manifest"
+    }
+  },
+  "RT_VERSION": {
+    "#1": {
+      "0000": {
+        "fixed": {
+          "file_version": "1.0.0.0",
+          "product_version": "1.0.0.0",
+          "flags": "Prerelease"
+        },
+        "info": {
+          "0409": {
+            "CompanyName": "Lime TUI contributors",
+            "FileDescription": "Lime TUI - Spotify terminal player",
+            "FileVersion": "1.0.0",
+            "ProductName": "Lime TUI",
+            "ProductVersion": "1.0.0",
+            "OriginalFilename": "Lime.exe",
+            "Comments": "Your music. Your terminal."
+          }
+        }
+      }
+    }
+  }
+}
