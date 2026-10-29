@@ -16,3 +16,5 @@ Security changes in v1.0.0: local spotatui-librespot-core source override for Wi
 Visualizer change in v1.0.1: optional PCM observer in a local spotatui-librespot-playback 0.8.6 override, plus bounded stereo FFT in Lime. The original playback license/source and LIME-PATCHES.md are retained.
 
 Library interaction changes in v1.0.1: clickable action controls, in-context loading and acknowledged queue/playback feedback, retryable errors and duplicate-action prevention.
+
+History changes in v1.0.2: bounded account Web API reads, independent background refresh, explicit source labels, local fallback, server cooldown and session-generation cleanup.

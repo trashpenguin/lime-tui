@@ -1,8 +1,8 @@
 {
   "@context": "https://openvex.dev/ns/v0.2.0",
-  "@id": "urn:uuid:fd8f8e0c-d83a-4ceb-a35e-6fef4e48f0c5",
+  "@id": "urn:uuid:1ca6671a-31a0-4d99-b828-2fa5c2e91c5f",
   "author": "Lime TUI local release review",
-  "timestamp": "2026-10-29T00:00:00Z",
+  "timestamp": "2026-10-29T17:21:02.838237+00:00",
   "version": 1,
   "statements": [
     {
@@ -11,7 +11,7 @@
       },
       "products": [
         {
-          "@id": "pkg:generic/lime-tui@1.0.1?arch=x86_64&os=windows",
+          "@id": "pkg:generic/lime-tui@1.0.2?arch=x86_64&os=windows",
           "subcomponents": [
             {
               "@id": "pkg:cargo/block-buffer@0.10.4"
@@ -29,7 +29,7 @@
       },
       "products": [
         {
-          "@id": "pkg:generic/lime-tui@1.0.1?arch=x86_64&os=windows",
+          "@id": "pkg:generic/lime-tui@1.0.2?arch=x86_64&os=windows",
           "subcomponents": [
             {
               "@id": "pkg:cargo/rsa@0.9.10"

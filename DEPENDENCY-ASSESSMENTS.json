@@ -1,5 +1,5 @@
 {
-  "review_date": "2026-10-29",
+  "review_date": "2026-10-30",
   "target": "x86_64-pc-windows-msvc",
   "features": [
     "pomme-bridge"
@@ -36,7 +36,7 @@
         "vendor/spotatui-librespot-playback/Cargo.toml": "a91dbe0cb891632422f6a00edfb0312b8bf446b5d08add41de030ebff42c0ce1"
       },
       "source_tree_sha256": {
-        "src": "674c8dcdaf43ad9a35148616a1cc9200dc01a5b84a8b7ea8469b73e514d4ae62",
+        "src": "48449e1cac89b246188fb823ea1bb344d00cee399abada8545a966e707ec789c",
         "vendor/spotatui-librespot-core/src": "5180e840530e5c29e708f6de96fdedd2e6b8301ad53ce00aa26383e069f4de94",
         "vendor/spotatui-librespot-playback/src": "93692c7c1b0d4b28f52ad73c611d0a453311a63fb73e3e94b8e6efb69b538fac"
       }

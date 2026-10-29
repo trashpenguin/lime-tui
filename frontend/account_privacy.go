@@ -7,6 +7,7 @@ import (
 	"github.com/k1y0miiii/applemusic-tui/lyrics"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 // Keep settings/theme, but erase Spotify-derived personal data on disconnect.
@@ -20,6 +21,11 @@ func (m *model) clearSpotifyPersonalData() error {
 	}
 	m.listenLastTrack = ""
 	m.recent = nil
+	m.localRecent = nil
+	m.recentSource = ""
+	m.recentSyncBusy = false
+	m.recentSyncToken++
+	m.recentNextSync = time.Time{}
 	m.recentArtRequested = nil
 	m.sRes = engine.SearchResults{}
 	m.statsRes = engine.SearchResults{}

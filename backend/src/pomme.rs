@@ -363,6 +363,12 @@ impl Backend {
         return Ok(json!({"protocol":1, "authed":credentials::streaming_credentials_are_cached()?}))
       }
       "state" => return Ok(self.state().await),
+      "recent_history" => {
+        let history = spotify::account_history::read().await;
+        return Ok(
+          json!({"recent":map_items(&history,"songs"),"err":history["err"],"retryAfterSeconds":history["retryAfterSeconds"]}),
+        );
+      }
       "spectrum" => {
         let q = self.queue.lock().await;
         let active = q.playing && !q.loading;
@@ -384,6 +390,7 @@ impl Backend {
           .take()
           .context("Start Spotify pairing first")?;
         let login = pending.finish().await?;
+        spotify::account_history::clear();
         session::log_in(login)
           .await
           .map_err(|reason| anyhow!(reason.message()))?;
@@ -731,6 +738,7 @@ impl Backend {
         }
       }
       "sign_out" => {
+        spotify::account_history::clear();
         if let Some(player) = self.player.lock().await.take() {
           player.shutdown();
         }
@@ -811,13 +819,7 @@ impl Backend {
     } else {
       &value
     };
-    let mut result = json!({kind:map_items(page,kind)});
-    if offset == 0 && category == "songs" {
-      if let Ok(recent) = get("me/player/recently-played", &[("limit", "20".into())]).await {
-        result["recent"] = serde_json::to_value(map_items(&recent, "songs"))?;
-      }
-    }
-    Ok(result)
+    Ok(json!({kind:map_items(page,kind)}))
   }
 
   async fn resolve(&self, kind: &str, id: &str) -> Result<Vec<Track>> {

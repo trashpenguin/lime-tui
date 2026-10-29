@@ -1,4 +1,7 @@
-# Lime TUI 1.0.1 release readiness
+# Lime TUI 1.0.2 release readiness
+
+v1.0.2 adds conditional account-history sync and a clearly labeled local fallback. The live history request returned HTTP 429; actual account contents could not be verified. Local protocol/UI tests cover success and failure handling, and Retry-After survives restarts. This does not resolve Spotify authorization or quota eligibility. See VALIDATION.md.
+
 
 v1.0.1 adds explicit library action buttons and confirmed progress/error feedback,
 and replaces the decorative visualizer with output-paced stereo FFT analysis.

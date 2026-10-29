@@ -26,3 +26,7 @@ These are release findings and an implementation assessment, not a determination
 Lime TUI is a Windows terminal music interface with keyboard/mouse navigation, album artwork, library browsing, a local queue and timed lyrics. The present beta uses spotatui/librespot for native Spotify pairing/playback and internal service requests. It caches login credentials with current-user Windows DPAPI, stores preferences locally and removes local Spotify history on disconnect. LRCLIB is a fallback lyric service; optional Last.fm integration exists. There is no added advertising, payment, telemetry uploader or browser webview. Existing local metrics and terminal attribution need review. We seek guidance on an authorized distribution model and any necessary changes or written permissions.
 
 Owner/contact fields remain unfilled because no verified publisher contact was provided. This document is the concrete review artifact; it grants no permission by itself.
+
+## v1.0.2 account-history path
+
+The preview additionally attempts Spotify’s public Web API recently-played endpoint using the existing session token. It does not introduce a user-owned registered application or establish quota eligibility. The signed-in test returned HTTP 429. A source-labeled local fallback and persistent Retry-After cooldown handle denial/unavailability; no successful account-history import is claimed for that live check.

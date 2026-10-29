@@ -142,6 +142,11 @@ type model struct {
 	recent             []engine.Track
 	recentSel          int
 	recentArtRequested map[string]bool
+	localRecent        []engine.Track
+	recentSource       string
+	recentSyncBusy     bool
+	recentSyncToken    uint64
+	recentNextSync     time.Time
 
 	themeName string            // active theme, persisted across runs
 	cfg       map[string]string // parsed config.toml, read once at startup
@@ -635,6 +640,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		scrobble := m.advanceScrobble(time.Second / 30)
 		cmds := []tea.Cmd{tick()}
+		if m.phase == phaseReady && !m.recentSyncBusy && !now.Before(m.recentNextSync) {
+			cmds = append(cmds, m.syncSpotifyHistory())
+		}
 		if !now.Before(m.nextCoverCheck) {
 			m.nextCoverCheck = now.Add(time.Second)
 			var coverCmd tea.Cmd
@@ -655,9 +663,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, listenStatus(m.statusCh)
 	case readyMsg:
 		m.phase, m.eng = phaseReady, msg.eng
+		m.recentSyncBusy = false
 		cmds := []tea.Cmd{
 			m.fetchState(),
-			m.libraryCmd(), // fills the recently-played grid
+			m.libraryCmd(),
+			m.syncSpotifyHistory(),
 		}
 		// System audio capture outlives the browser, so a reconnect keeps the
 		// visualizer it already has instead of opening a second source.
@@ -867,6 +877,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.statsRes = msg.res
 			m.statsErr = ""
 		}
+	case spotifyHistoryMsg:
+		return m.applySpotifyHistory(msg)
 	case libraryActionMsg:
 		return m.finishLibraryAction(msg)
 	case noteMsg:
@@ -895,12 +907,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// privileges, so one can be refused while the other answers — whatever
 		// did arrive is shown alongside the reason rather than dropped with it.
 		m.sRes, m.sSel, m.sInput = msg.res, 0, msg.keepInput
+		if m.recentSource != "" {
+			m.sRes.Recent = m.recent
+		}
 		if !msg.keepInput && m.sTab == 0 {
 			m.sTab = 1 // catalog search has no RECENT — land on SONGS
 		}
 		// Only a library load carries recently played; a catalog search must
 		// not wipe the grid.
-		if len(msg.res.Recent) > 0 {
+		if len(msg.res.Recent) > 0 && m.recentSource != "spotify" {
 			m.recent = msg.res.Recent
 			m.recentSel = min(m.recentSel, len(m.recent)-1)
 		}
@@ -1082,6 +1097,9 @@ func (m model) updateKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "?":
 		m.helpPage = 0
 		m.helpOpen = true
+	case "H":
+		cmd := m.syncSpotifyHistory()
+		return m, cmd
 	case "a":
 		m.acctOpen, m.acctLoading = true, true
 		return m, accountCmd(eng)
@@ -1328,6 +1346,19 @@ func (m model) queuePanel(w, h int) string {
 
 // recentTitle keeps the selected track's position visible while the list scrolls.
 func (m model) recentTitle() string {
+	if m.recentSource != "" {
+		source := "LOCAL"
+		if m.recentSource == "spotify" {
+			source = "SPOTIFY"
+		}
+		if len(m.recent) == 0 {
+			return "RECENT · " + source
+		}
+		return fmt.Sprintf("RECENT · %s · %d/%d", source, m.recentSel+1, len(m.recent))
+	}
+	if m.recentSyncBusy {
+		return "RECENT · SYNCING"
+	}
 	if len(m.recent) == 0 {
 		return "RECENTLY PLAYED"
 	}

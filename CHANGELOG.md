@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.0.2 — 2026-10-30
+
+- Add an independent Spotify account-history request, up to 50 recent tracks, with automatic refresh and H to refresh from the player.
+- Label the feed SPOTIFY or LOCAL; preserve Spotify ordering and keep local plays as a separate fallback.
+- Respect Retry-After with a persisted, non-personal cooldown; bound response size and clear pending account history on sign-out.
+- Live account access returned HTTP 429 during validation. Remote success/order, failures and cooldown handling have local protocol/UI tests; real imported account contents remain unverified.
+
+
 ## v1.0.1 — 2026-10-29
 
 - Add clickable Play All, Add to Queue and Next controls to library browsing.

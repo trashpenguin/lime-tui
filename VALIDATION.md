@@ -1,4 +1,9 @@
-# Lime TUI 1.0.1 validation — 2026-10-29
+# Lime TUI 1.0.2 validation — 2026-10-30
+
+The history update passed the full Go suite/vet, 1,486 Rust library tests (nine ignored), and strict Clippy. Tests cover authenticated HTTP requests, Spotify order and metadata mapping, empty results, errors/local fallback, long Retry-After seconds and HTTP dates, persistent cooldown without tokens/history, malformed/oversized responses, stale session results, focused selection and disconnect cleanup. Cache entries carry their session generation so a busy cache cannot retain the previous account across logout/re-pairing. The opt-in real-history test was run separately and failed because Spotify returned HTTP 429; it is not counted as a successful account import. The app must display LOCAL until a real history request succeeds.
+
+The following sections document earlier v1.0.1/v1.0.0 checks.
+
 
 Library controls passed the full Go suite and vet, including button hit targets,
 duplicate-request prevention, acknowledgement-only queue success, persistent

@@ -134,7 +134,7 @@ func methodTimeout(method string) time.Duration {
 		return 60 * time.Second
 	case "save_playlist":
 		return 310 * time.Second
-	case "search", "library", "library_page", "artist_page", "queue_next", "queue_later", "save_item", "discovery", "discovery_item":
+	case "recent_history", "search", "library", "library_page", "artist_page", "queue_next", "queue_later", "save_item", "discovery", "discovery_item":
 		return 35 * time.Second
 	default:
 		return 5 * time.Second
@@ -185,6 +185,21 @@ func (e *Engine) Search(term string) (SearchResults, error) {
 	return e.results("search", map[string]any{"query": term})
 }
 func (e *Engine) Library() (SearchResults, error) { return e.results("library", nil) }
+func (e *Engine) RecentHistory() (HistoryPage, error) {
+	var raw struct {
+		Recent            []wireTrack
+		Err               string
+		RetryAfterSeconds int64
+	}
+	if err := e.call("recent_history", nil, &raw); err != nil {
+		return HistoryPage{}, err
+	}
+	page := HistoryPage{Tracks: tracks(raw.Recent), RetryAfter: time.Duration(min(max(raw.RetryAfterSeconds, 60), 31536000)) * time.Second}
+	if raw.Err != "" {
+		return page, errors.New(raw.Err)
+	}
+	return page, nil
+}
 func (e *Engine) Account() (Account, error) {
 	var account Account
 	err := e.call("account", nil, &account)

@@ -131,7 +131,7 @@ func TestReadyStartsVisualizerOpenAlongsideInitialStateFetch(t *testing.T) {
 	if !ok {
 		t.Fatalf("ready command returned %T, want tea.BatchMsg", msg)
 	}
-	want := 3
+	want := 4 // history sync runs independently of state, library and visualizer
 	if got.mpris != nil {
 		want++
 	}

@@ -149,20 +149,27 @@ func (m model) requestVisibleArtwork() (model, tea.Cmd) {
 	return m, tea.Batch(commands...)
 }
 
-// The native Spotify bridge has no remote recently-played feed. Keep the
-// currently observed plays visible so their cover thumbnails are useful.
+// Keep a separate bounded local fallback. Account history stays in Spotify's order.
 func (m *model) rememberPlayedCover(track engine.Track) {
 	if track.ID == "" {
 		return
 	}
 	items := []engine.Track{track}
-	for _, old := range m.recent {
+	oldItems := m.localRecent
+	if len(oldItems) == 0 && m.recentSource != "spotify" {
+		oldItems = m.recent
+	}
+	for _, old := range oldItems {
 		if old.ID != track.ID && len(items) < 20 {
 			items = append(items, old)
 		}
 	}
-	m.recent = items
-	m.recentSel = min(m.recentSel, len(items)-1)
+	m.localRecent = items
+	if m.recentSource != "spotify" {
+		m.recent = items
+		m.sRes.Recent = items
+		m.recentSel = min(m.recentSel, len(items)-1)
+	}
 }
 
 func withVisibleArtwork(next tea.Model, command tea.Cmd) (tea.Model, tea.Cmd) {

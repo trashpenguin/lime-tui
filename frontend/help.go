@@ -62,6 +62,7 @@ var helpSections = []helpSection{
 		{"r", "cycle repeat"},
 	}},
 	{"BROWSING", []helpEntry{
+		{"H", "sync history"},
 		{"/", "search"},
 		{"L", "Library page"},
 		{"tab", "cycle focus"},
