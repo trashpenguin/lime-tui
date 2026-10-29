@@ -126,7 +126,7 @@ func TestLibraryAlbumClickStartsSelectedAlbum(t *testing.T) {
 	}
 	updated, cmd := m.Update(tea.MouseMsg{X: m.w / 2, Y: y, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress})
 	got := updated.(model)
-	if got.libraryOpen || got.loading != "Clickable Album" || cmd == nil {
+	if !got.libraryOpen || !got.libraryActionBusy || got.loading != "Clickable Album" || cmd == nil {
 		t.Fatal("clicking the visible album did not start it")
 	}
 }

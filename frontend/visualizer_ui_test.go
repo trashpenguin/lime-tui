@@ -756,7 +756,7 @@ func fillSine(dst []float32, frequency float64) {
 	}
 }
 
-func TestVisualizerOpenErrorFallsBackAndNotifiesOnce(t *testing.T) {
+func TestVisualizerOpenErrorStopsAndNotifiesOnce(t *testing.T) {
 	m := model{
 		phase:      phaseReady,
 		t:          10,
@@ -783,8 +783,8 @@ func TestVisualizerOpenErrorFallsBackAndNotifiesOnce(t *testing.T) {
 	if !got.vizTerminal {
 		t.Fatal("open error should latch terminal fallback state")
 	}
-	if got.note != "visualizer unavailable · simulated" {
-		t.Fatalf("note = %q, want short simulated fallback note", got.note)
+	if got.note != "visualizer unavailable" {
+		t.Fatalf("note = %q, want short unavailable note", got.note)
 	}
 	noteAt := got.noteAt
 
@@ -937,5 +937,17 @@ func TestQuitStartsVisualizerCloseWithoutWaiting(t *testing.T) {
 				t.Fatal("quit did not start visualizer Close")
 			}
 		})
+	}
+}
+
+func TestFailedNativeVisualizerDoesNotInventMusic(t *testing.T) {
+	m := model{phase: phaseReady, st: engine.State{Playing: true}, vizTerminal: true}
+	next, _ := m.Update(tickMsg(time.Now()))
+	got := next.(model)
+	if got.vizBands != ([32]float64{}) {
+		t.Fatal("failed native source generated fake spectrum")
+	}
+	if got.visualizerTitle() != "VISUALIZER · UNAVAILABLE" {
+		t.Fatal("unavailable source is misleadingly labeled")
 	}
 }

@@ -33,3 +33,6 @@ pub use pomme::run as run_pomme;
 
 #[cfg(all(test, target_os = "windows", feature = "pomme-bridge"))]
 mod lime_security_tests;
+
+#[cfg(feature = "pomme-bridge")]
+mod live_spectrum;

@@ -172,7 +172,7 @@ objc2 = { version = "0.6", optional = true }
 block2 = { version = "0.6", optional = true }
 
 [features]
-pomme-bridge = ["streaming", "windows-media"]
+pomme-bridge = ["streaming", "windows-media", "realfft", "librespot-playback/pcm-observer"]
 default = ["telemetry", "streaming", "audio-viz-cpal", "macos-media", "discord-rpc", "mpris", "self-update", "windows-media", "scripting", "tui"]
 telemetry = []
 # The terminal frontend: gates `mod tui` and owns the terminal-only crates.
@@ -358,3 +358,5 @@ required-features = ["pomme-bridge"]
 
 [patch.crates-io]
 spotatui-librespot-core = { path = "vendor/spotatui-librespot-core" }
+
+spotatui-librespot-playback = { path = "vendor/spotatui-librespot-playback" }

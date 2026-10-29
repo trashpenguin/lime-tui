@@ -21,6 +21,6 @@ Reference source at the inspected upstream commit:
 1. A Spotify Connect device picker with an explicit local/remote playback indication.
 2. Album/artist detail pages with a large cover, track counts and visible Play All / Queue actions.
 3. In-app settings for text size/layout density, artwork, keybindings and reduced animation.
-4. A real audio-reactive visualizer as an optional feature. The current visualizer is decorative; capture/FFT should remain off until requested and measured for RAM/CPU.
+4. Implemented in v1.0.1: a real audio-reactive visualizer using a bounded stereo FFT at native output consumption. It uses no system or microphone capture. Live-source failure shows UNAVAILABLE instead of synthetic motion.
 
 Those candidates are not claimed as implemented. Before a broad public launch, validate a fresh Windows machine, longer playback/reconnection sessions and total process memory, then arrange signed distribution.

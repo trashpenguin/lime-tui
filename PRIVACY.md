@@ -16,7 +16,7 @@ The account menu removes the cached Spotify login and clears the queue and local
 
 Spotify pairing, catalog, library, artwork, timed lyrics and playback contact Spotify and its infrastructure. LRCLIB is a fallback for lyrics; lyric searches can send the current track title and artist to LRCLIB. Artwork requests go to the URL returned by catalog metadata. Optional Last.fm features inherited from the frontend can contact Last.fm if configured. Your IP address and requests are visible to contacted services under their own policies. Internet access and Spotify Premium are required for playback.
 
-No analytics/telemetry uploader, advertising service or automatic crash-report uploader was added. Diagnostics are local. The --diagnose-system report contains binary hashes, platform/toolchain information and storage-presence flags; it does not read credential contents or include account names, catalog, history, tokens or profile paths. The visualizer is simulated. Recently played data reflects tracks observed by this player and is not a full import of your Spotify history.
+No analytics/telemetry uploader, advertising service or automatic crash-report uploader was added. Diagnostics are local. The --diagnose-system report contains binary hashes, platform/toolchain information and storage-presence flags; it does not read credential contents or include account names, catalog, history, tokens or profile paths. The visualizer analyzes small, bounded buffers of Lime’s outgoing audio in memory. It does not record a microphone, capture other applications or save audio. Recently played data reflects tracks observed by this player and is not a full import of your Spotify history.
 
 ## Before public release
 

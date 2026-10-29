@@ -3,8 +3,8 @@
   "features": [
     "pomme-bridge"
   ],
-  "cargo_lock_sha256": "db4258ac88ad1d037b0874d39594859362f47a44abeb001291fff6802f623b65",
-  "packages_checked": 350,
+  "cargo_lock_sha256": "a9fbb24410318af4f36b942a96ebf0500f86b8299f6a5556b7bf9bbfa2523e4c",
+  "packages_checked": 356,
   "findings": [
     {
       "package": "block-buffer",
@@ -118,12 +118,12 @@
             }
           },
           "database_specific": {
-            "informational": null,
             "categories": [
               "crypto-failure"
             ],
             "cvss": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:N/A:N",
-            "source": "https://github.com/rustsec/advisory-db/blob/osv/crates/RUSTSEC-2023-0071.json"
+            "source": "https://github.com/rustsec/advisory-db/blob/osv/crates/RUSTSEC-2023-0071.json",
+            "informational": null
           }
         }
       ],

@@ -75,8 +75,9 @@ var helpSections = []helpSection{
 	}},
 	{"LIBRARY PAGE", []helpEntry{
 		{"↑ / ↓", "move selection"},
-		{"enter", "play / open"},
+		{"enter", "play all / open"},
 		{"a / A", "queue / play next"},
+		{"r", "reload / retry"},
 		{"pgup/dn", "page list"},
 		{"tab", "next category"},
 		{"/", "catalog search"},

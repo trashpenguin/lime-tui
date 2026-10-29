@@ -27,6 +27,9 @@ func (m *model) clearSpotifyPersonalData() error {
 	m.discoveryTracks = nil
 	m.discoveryTitle = ""
 	m.libraryDetailTitle = ""
+	m.libraryDetailID, m.libraryActionStatus = "", ""
+	m.libraryActionBusy, m.libraryActionFailed, m.libraryPlayRequested = false, false, false
+	m.libraryActionToken++ // discard completions from the disconnected account
 	m.ly = lyrics.Lyrics{}
 	m.lyFor = ""
 	m.art = nil

@@ -363,7 +363,12 @@ impl Backend {
         return Ok(json!({"protocol":1, "authed":credentials::streaming_credentials_are_cached()?}))
       }
       "state" => return Ok(self.state().await),
-      "spectrum" => bail!("Live audio spectrum is disabled in the lean Spotify backend"),
+      "spectrum" => {
+        let q = self.queue.lock().await;
+        let active = q.playing && !q.loading;
+        drop(q);
+        return Ok(serde_json::to_value(crate::live_spectrum::bands(active))?);
+      }
       "login_begin" => {
         let pending = credentials::begin_login().await?;
         let result = json!({"url": pending.url(), "code": pending.code()});
@@ -1028,6 +1033,7 @@ fn start_media(backend: Arc<Backend>) -> Option<Arc<smtc_tokio::WindowsMediaMana
 
 pub async fn run() -> Result<()> {
   // No file logs or credential-bearing protocol diagnostics.
+  crate::live_spectrum::install();
   let backend = Arc::new(Backend::new());
   #[cfg(all(target_os = "windows", feature = "windows-media"))]
   let _media = start_media(backend.clone());

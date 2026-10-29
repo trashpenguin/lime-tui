@@ -12,3 +12,7 @@ Local changes: cover metadata fallback, bounded retry/normalization and browsing
 Lime branding and original lime/play icon were added locally. The editable original icon assets are released under the MIT license in LICENSE-FRONTEND.txt. This name has not undergone trademark clearance. Internal bridge/module names retain upstream Pomme identifiers for compatibility.
 
 Security changes in v1.0.0: local spotatui-librespot-core source override for Windows DPAPI credential persistence and quick-xml 0.41 with bounded/fail-fast product parsing; block-buffer update; serde_norway parser replacement; protected optional session tokens and disconnect-history cleanup. The modified core source and LIME-PATCHES.md are included in the matching source ZIP; this is not an upstream core release.
+
+Visualizer change in v1.0.1: optional PCM observer in a local spotatui-librespot-playback 0.8.6 override, plus bounded stereo FFT in Lime. The original playback license/source and LIME-PATCHES.md are retained.
+
+Library interaction changes in v1.0.1: clickable action controls, in-context loading and acknowledged queue/playback feedback, retryable errors and duplicate-action prevention.

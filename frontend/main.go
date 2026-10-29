@@ -24,7 +24,7 @@ import (
 const (
 	audioInitializingText     = "initializing Spotify audio…"
 	audioInitializingWarning  = "Spotify is still initializing · R reload"
-	visualizerUnavailableNote = "visualizer unavailable · simulated"
+	visualizerUnavailableNote = "visualizer unavailable"
 	visualizerFrameFreshness  = 400 * time.Millisecond
 )
 
@@ -223,30 +223,36 @@ type model struct {
 	sBusy      bool
 	sRes       engine.SearchResults
 
-	discoveryOpen      bool
-	discoveryBusy      bool
-	discoveryErr       string
-	discoveryFeed      engine.Discovery
-	discoverySel       int
-	discoveryDetail    bool
-	discoveryTracks    []engine.Track
-	discoveryTrackSel  int
-	discoveryTitle     string
-	saveConfirmOpen    bool
-	saveConfirmTrack   engine.Track
-	queueOpen          bool
-	queuePrevFocus     int
-	statsOpen          bool
-	statsBusy          bool
-	statsErr           string
-	statsRes           engine.SearchResults
-	statsRange         statsRange
-	listenHistory      *listeningHistory
-	listenLastTrack    string
-	listenLastSave     time.Time
-	libraryOpen        bool
-	libraryErr         string
-	libraryDetailTitle string
+	discoveryOpen        bool
+	discoveryBusy        bool
+	discoveryErr         string
+	discoveryFeed        engine.Discovery
+	discoverySel         int
+	discoveryDetail      bool
+	discoveryTracks      []engine.Track
+	discoveryTrackSel    int
+	discoveryTitle       string
+	saveConfirmOpen      bool
+	saveConfirmTrack     engine.Track
+	queueOpen            bool
+	queuePrevFocus       int
+	statsOpen            bool
+	statsBusy            bool
+	statsErr             string
+	statsRes             engine.SearchResults
+	statsRange           statsRange
+	listenHistory        *listeningHistory
+	listenLastTrack      string
+	listenLastSave       time.Time
+	libraryOpen          bool
+	libraryErr           string
+	libraryDetailTitle   string
+	libraryDetailID      string
+	libraryActionBusy    bool
+	libraryActionFailed  bool
+	libraryActionStatus  string
+	libraryActionToken   uint64
+	libraryPlayRequested bool
 }
 
 func (m model) visualizerTitle() string {
@@ -255,6 +261,9 @@ func (m model) visualizerTitle() string {
 	}
 	if m.vizOpening {
 		return "VISUALIZER · STARTING"
+	}
+	if m.vizTerminal {
+		return "VISUALIZER · UNAVAILABLE"
 	}
 	return "VISUALIZER · SIMULATED"
 }
@@ -611,7 +620,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			for i := range m.vizBands {
 				m.vizBands[i] += (m.vizTargets[i] - m.vizBands[i]) * 0.45
 			}
-		} else if !m.vizOpening {
+		} else if !m.vizOpening && !m.vizTerminal {
 			m.vizBands = simulatedBands(m.t, m.st.Playing)
 		} else {
 			m.vizBands = [32]float64{}
@@ -723,6 +732,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 			m.st = newSt
+			if m.libraryPlayRequested && !m.libraryActionBusy && m.st.Err != "" {
+				m.libraryActionStatus = "Could not play: " + strings.Join(strings.Fields(m.st.Err), " ") + " · Retry the action"
+				m.libraryActionFailed, m.libraryPlayRequested = true, false
+			}
 			if newSt.Playing && newSt.Now.ID != "" {
 				if len(m.recent) == 0 || m.recent[0].ID != newSt.Now.ID {
 					m.rememberPlayedCover(newSt.Now)
@@ -770,6 +783,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			if m.loading != "" && snap(m.st) != m.loadSnap && !m.audioInitializing() {
 				m.loading = "" // queue switched — loading done
+			}
+			if m.libraryPlayRequested && !m.libraryActionBusy && m.st.Playing && !m.audioInitializing() {
+				m.libraryActionStatus = "Playing: " + m.st.Now.Title
+				m.libraryPlayRequested = false
 			}
 			if id := m.st.Now.ID; id != "" && id != m.lyFor {
 				m.lyFor, m.lyBusy, m.ly = id, true, lyrics.Lyrics{}
@@ -850,6 +867,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.statsRes = msg.res
 			m.statsErr = ""
 		}
+	case libraryActionMsg:
+		return m.finishLibraryAction(msg)
 	case noteMsg:
 		m.note, m.noteAt = string(msg), m.t
 		m.loading = "" // action failed — stop the spinner

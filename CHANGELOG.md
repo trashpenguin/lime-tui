@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.0.1 — 2026-10-29
+
+- Add clickable Play All, Add to Queue and Next controls to library browsing.
+- Show pending actions, confirmed queue results and persistent errors; add page retry/reload.
+- Keep the library visible during playback loading, block duplicate pending actions and confirm playback from actual state.
+- Replace decorative bars with a stereo FFT of audio consumed by Lime’s output mixer.
+- Stop reporting synthetic motion when the live source fails; show UNAVAILABLE.
+- Verify queued versus consumed samples, frequency response, pause silence and live playback.
+
 ## v1.0.0 — 2026-10-29
 
 First GitHub upload and initial Windows x64 preview.

@@ -43,7 +43,7 @@ try:
     call('search',dict(query=''),error=True)
     call('queue_edit',dict(action='remove',index=999),error=True)
     call('unknown_fixture',error=True)
-    call('spectrum',error=True)
+    assert call('spectrum') == [0.0]*32
     call('queue_edit',dict(action='clear'))
     s=call('state');assert s['queue']==[] and s['now'] is None and not s['playing']
     idle_memory=None

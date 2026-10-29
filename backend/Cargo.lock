@@ -6103,8 +6103,6 @@ dependencies = [
 [[package]]
 name = "spotatui-librespot-playback"
 version = "0.8.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2667b17b41f590c553f9eb98f7bf9c150758cff2e578310eb1bb8108e39f6dc0"
 dependencies = [
  "alsa 0.10.0",
  "cpal 0.16.0",

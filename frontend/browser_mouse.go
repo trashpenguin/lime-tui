@@ -66,10 +66,36 @@ func (m model) updateBrowserMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	enter := tea.KeyMsg{Type: tea.KeyEnter}
 	switch {
 	case m.libraryOpen:
+		rows := max(4, min(18, m.h-14))
+		for y, line := range strings.Split(view, "\n") {
+			if y != msg.Y || y != box.y+2+rows {
+				continue
+			}
+			plain := ansi.Strip(line)
+			for _, label := range m.libraryButtons() {
+				at := strings.Index(plain, label)
+				if at < 0 {
+					continue
+				}
+				x := lipgloss.Width(plain[:at])
+				if msg.X >= x && msg.X < x+lipgloss.Width(label) {
+					key := enter
+					if strings.HasPrefix(label, "[a ") {
+						key = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}}
+					}
+					if strings.HasPrefix(label, "[A ") {
+						key = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'A'}}
+					}
+					if strings.HasPrefix(label, "[r ") {
+						key = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'r'}}
+					}
+					return m.updateLibraryView(key)
+				}
+			}
+		}
 		if m.sBusy || m.libraryErr != "" {
 			return m, nil
 		}
-		rows := max(4, min(18, m.h-13))
 		row := msg.Y - box.y - 2
 		start := max(0, m.sSel-rows+1)
 		index := start + row

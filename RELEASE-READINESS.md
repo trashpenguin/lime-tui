@@ -1,4 +1,10 @@
-# Lime TUI 1.0.0 release readiness
+# Lime TUI 1.0.1 release readiness
+
+v1.0.1 adds explicit library action buttons and confirmed progress/error feedback,
+and replaces the decorative visualizer with output-paced stereo FFT analysis.
+See VALIDATION.md for the patch's tests and updated dependency audit. Historical
+v1.0.0 evidence below remains identified by version. Signing, Spotify permission
+and broader hardware qualification remain unresolved.
 
 Reviewed 2026-10-29. **Initial GitHub preview; general consumer qualification and Spotify distribution authorization remain incomplete.** The first GitHub source/preview upload is v1.0.0. No certificate/trust setting was created, and no Spotify application or agreement was submitted.
 

@@ -756,6 +756,9 @@ func (m model) updateSearch(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m model) updateLibraryView(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	eng := m.eng
 	list := m.curList()
+	if m.libraryActionBusy && msg.String() != "esc" && msg.String() != "ctrl+c" {
+		return m, nil
+	}
 	if direction := pageDirection(msg); direction != 0 {
 		if m.sBusy {
 			return m, nil
@@ -788,13 +791,24 @@ func (m model) updateLibraryView(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "/":
 		m.libraryOpen, m.searchOpen, m.sInput = false, true, true
 		return m, nil
+	case "r":
+		if m.sBusy {
+			return m, nil
+		}
+		m.libraryErr, m.sBusy = "", true
+		if m.libraryDetailTitle != "" {
+			id := m.libraryDetailID
+			return m, func() tea.Msg { res, err := eng.ArtistPage(id); return searchMsg{res: res, err: err} }
+		}
+		return m, m.pagedLibraryCmd()
 	case "enter":
-		if m.sBusy || m.sSel >= len(list) || len(list) == 0 {
+		if m.sBusy || m.libraryErr != "" || m.sSel < 0 || m.sSel >= len(list) || len(list) == 0 {
 			return m, nil
 		}
 		selected := list[m.sSel]
 		if selected.Kind == "artist" {
 			m.libraryDetailTitle = selected.Title
+			m.libraryDetailID = selected.ID
 			m.libraryPaged, m.sBusy = false, true
 			m.sTab, m.sSel = 1, 0
 			return m, func() tea.Msg {
@@ -806,23 +820,18 @@ func (m model) updateLibraryView(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.note, m.noteAt = audioInitializingText, m.t
 			return m, nil
 		}
-		m.libraryOpen = false
-		m.loading, m.loadSnap, m.loadStart = selected.Title, snap(m.st), m.t
-		m.loadHideQueue = true
-		m.beginAudioInitialization()
-		play := doCmd(func() error { return eng.Play(selected.Kind, selected.ID) })
-		m, art := m.requestRecentArtwork()
-		return m, tea.Batch(play, art)
+		return m.startLibraryAction(selected, "play")
 	case "a", "A":
-		if !m.sBusy && m.sSel < len(list) {
+		if !m.sBusy && m.libraryErr == "" && m.sSel >= 0 && m.sSel < len(list) {
 			selected := list[m.sSel]
-			queue := eng.QueueLater
-			m.note, m.noteAt = "added to queue: "+selected.Title, m.t
-			if msg.String() == "A" {
-				queue = eng.QueueNext
-				m.note = "playing next: " + selected.Title
+			if selected.Kind == "artist" {
+				return m, nil
 			}
-			return m, doCmd(func() error { return queue(selected.Kind, selected.ID) })
+			action := "queue"
+			if msg.String() == "A" {
+				action = "next"
+			}
+			return m.startLibraryAction(selected, action)
 		}
 	case "up", "k":
 		m.sSel = max(0, m.sSel-1)
@@ -840,7 +849,7 @@ func (m model) libraryView() string {
 	}
 	bw := min(100, m.w-8)
 	iw := bw - 2
-	rows := max(4, min(18, m.h-13))
+	rows := max(4, min(18, m.h-14))
 	pink := lipgloss.NewStyle().Foreground(accentHi)
 	dim := lipgloss.NewStyle().Foreground(fgDim)
 	faint := lipgloss.NewStyle().Foreground(fgFaint)
@@ -850,7 +859,7 @@ func (m model) libraryView() string {
 	case m.sBusy:
 		body = append(body, faint.Render(" Loading your "+strings.ToLower(title)+"…"))
 	case m.libraryErr != "":
-		body = append(body, lipgloss.NewStyle().Foreground(accentHi).Render(" "+m.libraryErr))
+		body = append(body, pad(pink.Render(" Could not load library: "+strings.Join(strings.Fields(m.libraryErr), " ")), iw))
 	case len(list) == 0:
 		body = append(body, faint.Render(" Nothing here yet."))
 	default:
@@ -875,8 +884,27 @@ func (m model) libraryView() string {
 	if m.libraryPaged {
 		page = fmt.Sprintf("  ·  page %d", m.libraryOffset/50+1)
 	}
-	body = append(body, faint.Render(" ↑/↓ Move · Enter Play/open"))
-	body = append(body, faint.Render(" a Queue · A Play next · PgUp/PgDn Page"))
+	buttons := strings.Join(m.libraryButtons(), "  ")
+	if buttons == "" {
+		buttons = " Actions available after items load"
+	}
+	buttonStyle := pink.Bold(true)
+	if m.libraryActionBusy {
+		buttonStyle = faint
+	}
+	body = append(body, pad(buttonStyle.Render(" "+buttons), iw))
+	status := m.libraryActionStatus
+	if status == "" {
+		status = " Select an item above · Play All replaces the queue"
+	}
+	if m.libraryActionBusy {
+		status = " Working… " + status
+	}
+	if m.libraryActionFailed {
+		status = " Error · " + status
+	}
+	body = append(body, pad(dim.Render(status), iw))
+	body = append(body, faint.Render(" ↑/↓ Move · PgUp/PgDn Page · r Reload"))
 	body = append(body, faint.Render(" Tab Category · / Search · Esc Back"))
 	content := panel(title+page, strings.Join(body, "\n"), iw, len(body)+1, true, accentHi)
 	return lipgloss.Place(m.w, m.h, lipgloss.Center, lipgloss.Center,
