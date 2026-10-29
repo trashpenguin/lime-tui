@@ -1,4 +1,7 @@
-# Lime TUI 1.0.2 release readiness
+# Lime TUI 1.0.3 release readiness
+
+v1.0.3 hardens premature stream-end handling and adds F12 support reports. A stream fault is no longer silently treated as a normal song completion. Controlled real-player failure injection passed; spontaneous intermittent stops were not reproduced in the sampled seven-second starts. General fresh-machine/hardware qualification remains incomplete. See VALIDATION.md.
+
 
 v1.0.2 adds conditional account-history sync and a clearly labeled local fallback. The live history request returned HTTP 429; actual account contents could not be verified. Local protocol/UI tests cover success and failure handling, and Retry-After survives restarts. This does not resolve Spotify authorization or quota eligibility. See VALIDATION.md.
 

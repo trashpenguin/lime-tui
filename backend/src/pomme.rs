@@ -17,6 +17,53 @@ use tokio::sync::{mpsc, Mutex, Semaphore};
 const MAX_QUEUE: usize = 1000;
 const MAX_LINE: usize = 64 * 1024;
 
+#[derive(Debug, PartialEq)]
+enum TrackEnd {
+  Complete,
+  RetryStart,
+  Failed,
+}
+fn classify_track_end(
+  position: u64,
+  duration: u64,
+  wants_playback: bool,
+  retried: bool,
+) -> TrackEnd {
+  if duration == 0 || position.saturating_add(5000) >= duration {
+    return TrackEnd::Complete;
+  }
+  if wants_playback && position <= 8000 && !retried {
+    TrackEnd::RetryStart
+  } else {
+    TrackEnd::Failed
+  }
+}
+
+#[derive(Default)]
+struct PlaybackTrace {
+  started: Option<Instant>,
+  entries: std::collections::VecDeque<Value>,
+}
+impl PlaybackTrace {
+  fn push(
+    &mut self,
+    event: &'static str,
+    request: Option<u64>,
+    current: Option<bool>,
+    position: u64,
+  ) {
+    let at = self
+      .started
+      .get_or_insert_with(Instant::now)
+      .elapsed()
+      .as_millis() as u64;
+    if self.entries.len() == 64 {
+      self.entries.pop_front();
+    }
+    self.entries.push_back(json!({"atMs":at,"event":event,"request":request,"matchesCurrent":current,"positionMs":position}));
+  }
+}
+
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct Track {
@@ -46,6 +93,18 @@ struct Queue {
   clock: Option<Instant>,
   #[serde(skip)]
   error: String,
+  #[serde(skip)]
+  trace: PlaybackTrace,
+  #[serde(skip)]
+  request_id: Option<u64>,
+  #[serde(skip)]
+  generation: u64,
+  #[serde(skip)]
+  retry_used: bool,
+  #[serde(skip)]
+  retry_pending: bool,
+  #[serde(skip)]
+  play_intent: bool,
 }
 
 impl Queue {
@@ -65,6 +124,13 @@ impl Queue {
     self.position = self.position_ms();
     self.clock = None;
     self.playing = false;
+    self.loading = false;
+    self.retry_pending = false;
+    self.play_intent = false;
+  }
+  fn owns_event(&self, uri: &str, request: u64) -> bool {
+    self.current_uri().as_deref() == Some(uri)
+      && self.request_id.is_none_or(|active| active == request)
   }
   fn reset_clock(&mut self, position: u64, playing: bool) {
     self.position = position;
@@ -212,13 +278,47 @@ impl Backend {
         break;
       }
       let mut q = self.queue.lock().await;
+      let (name, uri) = match &event {
+        PlayerEvent::Playing { track_id, .. } => ("playing", Some(track_id.to_string())),
+        PlayerEvent::Paused { track_id, .. } => ("paused", Some(track_id.to_string())),
+        PlayerEvent::Loading { track_id, .. } => ("loading", Some(track_id.to_string())),
+        PlayerEvent::Stopped { track_id, .. } => ("stopped", Some(track_id.to_string())),
+        PlayerEvent::Unavailable { track_id, .. } => ("unavailable", Some(track_id.to_string())),
+        PlayerEvent::EndOfTrack { track_id, .. } => ("end_of_track", Some(track_id.to_string())),
+        PlayerEvent::TrackChanged { audio_item } => {
+          ("track_changed", Some(audio_item.track_id.to_string()))
+        }
+        PlayerEvent::PositionChanged { track_id, .. } => ("progress", Some(track_id.to_string())),
+        PlayerEvent::SessionDisconnected { reason, .. } => {
+          use librespot_playback::player::SessionDisconnectReason::*;
+          (
+            match reason {
+              ExternalDeviceHandoff => "handoff",
+              UnexpectedShutdown => "session_lost",
+              LocalCommand => "local_disconnect",
+            },
+            None,
+          )
+        }
+        _ => ("other", None),
+      };
+      if name != "other" {
+        let current = uri.map(|uri| q.current_uri().as_ref() == Some(&uri));
+        let position = q.position_ms();
+        q.trace
+          .push(name, event.get_play_request_id(), current, position);
+      }
       match event {
         PlayerEvent::Playing {
           track_id,
           position_ms,
-          ..
+          play_request_id,
         } => {
-          if q.current_uri().as_deref() == Some(track_id.to_string().as_str()) {
+          if q.owns_event(&track_id.to_string(), play_request_id)
+            && !q.retry_pending
+            && (q.play_intent || q.error.is_empty())
+          {
+            q.request_id = Some(play_request_id);
             q.reset_clock(position_ms as u64, true);
             q.error.clear();
           }
@@ -226,23 +326,25 @@ impl Backend {
         PlayerEvent::Paused {
           track_id,
           position_ms,
-          ..
+          play_request_id,
         } => {
-          if q.current_uri().as_deref() == Some(track_id.to_string().as_str()) {
+          if q.owns_event(&track_id.to_string(), play_request_id) {
+            q.retry_pending = false;
+            q.play_intent = false;
             q.reset_clock(position_ms as u64, false);
           }
         }
         PlayerEvent::Seeked {
           track_id,
           position_ms,
-          ..
+          play_request_id,
         }
         | PlayerEvent::PositionChanged {
           track_id,
           position_ms,
-          ..
+          play_request_id,
         } => {
-          if q.current_uri().as_deref() == Some(track_id.to_string().as_str()) {
+          if q.owns_event(&track_id.to_string(), play_request_id) && !q.retry_pending {
             let playing = q.playing;
             q.reset_clock(position_ms as u64, playing);
           }
@@ -255,31 +357,93 @@ impl Backend {
             }
           }
         }
-        PlayerEvent::EndOfTrack { track_id, .. } => {
-          if q.current_uri().as_deref() != Some(track_id.to_string().as_str()) {
+        PlayerEvent::EndOfTrack {
+          track_id,
+          play_request_id,
+        } => {
+          if !q.owns_event(&track_id.to_string(), play_request_id)
+            || q.retry_pending
+            || (!q.play_intent && !q.playing && !q.loading)
+          {
             continue;
+          }
+          let position = q.position_ms();
+          let duration = q.tracks.get(q.index).map(|t| t.dur_ms).unwrap_or(0);
+          match classify_track_end(position, duration, q.play_intent, q.retry_used) {
+            TrackEnd::RetryStart => {
+              q.freeze();
+              q.loading = true;
+              q.retry_pending = true;
+              q.retry_used = true;
+              q.play_intent = true;
+              q.trace
+                .push("early_end", Some(play_request_id), Some(true), position);
+              let generation = q.generation;
+              let index = q.index;
+              let backend = self.clone();
+              let active = player.clone();
+              // Stop the failed decoder immediately; otherwise packet errors can
+              // repeatedly emit EndOfTrack while the recovery delay is pending.
+              player.stop();
+              tokio::spawn(async move {
+                tokio::time::sleep(Duration::from_millis(500)).await;
+                let _guard = backend.commands.lock().await;
+                if !backend
+                  .player
+                  .lock()
+                  .await
+                  .as_ref()
+                  .is_some_and(|p| Arc::ptr_eq(p, &active))
+                {
+                  return;
+                }
+                let q = backend.queue.lock().await;
+                if !q.retry_pending
+                  || !q.play_intent
+                  || q.generation != generation
+                  || q.index != index
+                {
+                  return;
+                }
+                drop(q);
+                if let Err(error) = backend.load_index(&active, index, true).await {
+                  backend.playback_error(error).await;
+                }
+              });
+              continue;
+            }
+            TrackEnd::Failed => {
+              q.freeze();
+              q.loading = false;
+              q.error="The Spotify audio stream ended before the song finished. Press Space to retry or R to reconnect.".into();
+              q.trace
+                .push("stream_failed", Some(play_request_id), Some(true), position);
+              drop(q);
+              player.stop();
+              continue;
+            }
+            TrackEnd::Complete => {}
           }
           q.freeze();
           drop(q);
           let _guard = self.commands.lock().await;
-          let mut q = self.queue.lock().await;
-          if q.current_uri().as_deref() != Some(track_id.to_string().as_str()) {
+          let q = self.queue.lock().await;
+          if !q.owns_event(&track_id.to_string(), play_request_id) {
             continue;
           }
           if let Some(index) = q.next_index(true) {
-            q.index = index;
-            q.position = 0;
-            q.loading = true;
-            let uri = q.current_uri().unwrap();
             drop(q);
-            if let Err(error) = player.play_uri(&uri).await {
+            if let Err(error) = self.load_index(&player, index, false).await {
               self.playback_error(error).await;
             }
           }
           continue;
         }
-        PlayerEvent::Unavailable { track_id, .. } => {
-          if q.current_uri().as_deref() == Some(track_id.to_string().as_str()) {
+        PlayerEvent::Unavailable {
+          track_id,
+          play_request_id,
+        } => {
+          if q.owns_event(&track_id.to_string(), play_request_id) {
             q.freeze();
             q.loading = false;
             q.error =
@@ -287,11 +451,23 @@ impl Backend {
                 .into();
           }
         }
-        PlayerEvent::Stopped { track_id, .. }
-          if q.current_uri().as_deref() == Some(track_id.to_string().as_str()) =>
-        {
+        PlayerEvent::Stopped {
+          track_id,
+          play_request_id,
+        } if q.owns_event(&track_id.to_string(), play_request_id) && !q.retry_pending => {
+          let unexpected = q.play_intent && (q.playing || q.loading);
           q.freeze();
           q.loading = false;
+          if unexpected && q.error.is_empty() {
+            q.error="Spotify stopped playback unexpectedly. Select the track again or press R to reconnect.".into();
+          }
+        }
+        PlayerEvent::SessionDisconnected {
+          reason: librespot_playback::player::SessionDisconnectReason::ExternalDeviceHandoff,
+          ..
+        } => {
+          q.freeze();
+          q.error="Spotify playback moved to another device. Press R to reconnect if you want to play here.".into();
         }
         _ => {}
       }
@@ -306,7 +482,7 @@ impl Backend {
   }
 
   async fn start_index(self: &Arc<Self>, index: usize) -> Result<()> {
-    let uri = {
+    {
       let mut q = self.queue.lock().await;
       if index >= q.tracks.len() {
         bail!("Queue position is out of range");
@@ -316,12 +492,11 @@ impl Backend {
       q.position = 0;
       q.loading = true;
       q.error.clear();
-      q.current_uri().unwrap()
-    };
+      q.trace.push("request_play", None, Some(true), 0);
+    }
     let result = async {
       let player = self.ensure_player().await?;
-      player.activate();
-      player.play_uri(&uri).await
+      self.load_index(&player, index, false).await
     }
     .await;
     if let Err(error) = result {
@@ -330,6 +505,38 @@ impl Backend {
       bail!(message);
     }
     self.save().await?;
+    Ok(())
+  }
+
+  async fn load_index(
+    &self,
+    player: &Arc<StreamingPlayer>,
+    index: usize,
+    retry: bool,
+  ) -> Result<()> {
+    let mut q = self.queue.lock().await;
+    if index >= q.tracks.len() {
+      bail!("Queue position is out of range");
+    }
+    q.freeze();
+    q.index = index;
+    q.position = 0;
+    q.loading = true;
+    q.play_intent = true;
+    q.retry_used = retry;
+    q.generation = q.generation.wrapping_add(1);
+    q.request_id = None;
+    q.error.clear();
+    let uri = q.current_uri().unwrap();
+    player.activate();
+    q.request_id = player.play_uri_tracked(&uri).await?;
+    let request = q.request_id;
+    q.trace.push(
+      if retry { "retry_start" } else { "load_sent" },
+      request,
+      Some(true),
+      0,
+    );
     Ok(())
   }
 
@@ -363,6 +570,13 @@ impl Backend {
         return Ok(json!({"protocol":1, "authed":credentials::streaming_credentials_are_cached()?}))
       }
       "state" => return Ok(self.state().await),
+      "playback_diagnostics" => {
+        let player = self.player.lock().await.clone();
+        let q = self.queue.lock().await;
+        return Ok(
+          json!({"playing":q.playing,"loading":q.loading,"positionMs":q.position_ms(),"hasError":!q.error.is_empty(),"connected":player.as_ref().is_some_and(|p|p.is_connected()),"recovering":player.as_ref().is_some_and(|p|p.is_recovering()),"events":q.trace.entries}),
+        );
+      }
       "recent_history" => {
         let history = spotify::account_history::read().await;
         return Ok(
@@ -612,6 +826,8 @@ impl Backend {
           bail!("Search for a track and press Enter to play");
         }
         if q.playing || method == "pause" {
+          let position = q.position_ms();
+          q.trace.push("request_pause", None, Some(true), position);
           q.freeze();
           drop(q);
           if let Some(player) = self.player.lock().await.as_ref() {
@@ -620,9 +836,13 @@ impl Backend {
         } else {
           let index = q.index;
           let position = q.position;
+          let restart = !q.error.is_empty();
+          q.play_intent = true;
           drop(q);
           let existing = self.player.lock().await.as_ref().cloned();
-          if let Some(player) = existing {
+          if restart {
+            self.start_index(index).await?;
+          } else if let Some(player) = existing {
             player.play();
           } else {
             self.start_index(index).await?;
@@ -634,6 +854,7 @@ impl Backend {
       }
       "seek" => {
         let mut q = self.queue.lock().await;
+        q.retry_pending = false;
         let at = number(p, "atMs").min(q.tracks.get(q.index).map(|t| t.dur_ms).unwrap_or(0));
         let playing = q.playing;
         q.reset_clock(at, playing);
@@ -725,7 +946,12 @@ impl Backend {
         if let Some(player) = self.player.lock().await.take() {
           player.shutdown();
         }
-        self.queue.lock().await.freeze();
+        {
+          let mut q = self.queue.lock().await;
+          q.freeze();
+          q.request_id = None;
+          q.generation = q.generation.wrapping_add(1);
+        }
         self.ensure_player().await?;
         let q = self.queue.lock().await;
         let uri = q.current_uri();
@@ -1151,6 +1377,235 @@ pub async fn run() -> Result<()> {
 #[cfg(test)]
 mod tests {
   use super::*;
+  #[test]
+  fn playback_trace_is_bounded_and_never_persisted_with_the_queue() {
+    let mut q = Queue::default();
+    for i in 0..200 {
+      q.trace.push("progress", Some(i), Some(true), i);
+    }
+    assert_eq!(q.trace.entries.len(), 64);
+    let saved = serde_json::to_value(&q).unwrap();
+    assert!(saved.get("trace").is_none());
+    assert!(saved.to_string().find("progress").is_none());
+  }
+  #[test]
+  fn premature_start_end_retries_once_and_does_not_advance_the_queue() {
+    assert_eq!(
+      classify_track_end(1000, 180000, true, false),
+      TrackEnd::RetryStart
+    );
+    assert_eq!(
+      classify_track_end(1000, 180000, true, true),
+      TrackEnd::Failed
+    );
+    assert_eq!(
+      classify_track_end(30000, 180000, true, false),
+      TrackEnd::Failed
+    );
+    assert_eq!(
+      classify_track_end(1000, 180000, false, false),
+      TrackEnd::Failed
+    );
+    assert_eq!(
+      classify_track_end(179000, 180000, true, false),
+      TrackEnd::Complete
+    );
+    assert_eq!(classify_track_end(0, 0, true, false), TrackEnd::Complete);
+  }
+  #[test]
+  fn old_decoder_events_for_the_same_song_do_not_own_a_new_play_request() {
+    let q = Queue {
+      tracks: vec![track(1)],
+      request_id: Some(9),
+      ..Queue::default()
+    };
+    let uri = q.current_uri().unwrap();
+    assert!(!q.owns_event(&uri, 8));
+    assert!(q.owns_event(&uri, 9));
+  }
+  #[test]
+  fn pausing_cancels_a_scheduled_stream_retry() {
+    let mut q = Queue {
+      retry_pending: true,
+      play_intent: true,
+      loading: true,
+      ..Queue::default()
+    };
+    q.freeze();
+    assert!(!q.retry_pending && !q.play_intent && !q.loading);
+  }
+  #[tokio::test]
+  #[ignore = "requires cached Premium login, isolated state and LIME_TEST_TRACK_IDS_FILE"]
+  async fn native_track_start_batch_stays_playing() {
+    session::ALLOW_IN_TESTS.store(true, std::sync::atomic::Ordering::Relaxed);
+    let ids: Vec<String> = serde_json::from_slice(
+      &std::fs::read(std::env::var("LIME_TEST_TRACK_IDS_FILE").expect("track fixture path"))
+        .unwrap(),
+    )
+    .unwrap();
+    assert!(!ids.is_empty());
+    let backend = Arc::new(Backend::new());
+    backend
+      .handle("set_volume", &json!({"volume":15}))
+      .await
+      .unwrap();
+    let mut failures = 0;
+    for (i, id) in ids.iter().enumerate() {
+      if backend
+        .handle("play", &json!({"kind":"song","id":id}))
+        .await
+        .is_err()
+      {
+        failures += 1;
+        println!("sample {}: play request failed", i + 1);
+        continue;
+      }
+      let deadline = Instant::now() + Duration::from_secs(35);
+      let mut started = None;
+      let mut failed = false;
+      while Instant::now() < deadline {
+        let state = backend.state().await;
+        if state["playing"] == true {
+          started.get_or_insert_with(Instant::now);
+        }
+        if !text(&state, "err").is_empty() || (started.is_some() && state["playing"] != true) {
+          failed = true;
+          break;
+        }
+        if started.is_some_and(|at| at.elapsed() > Duration::from_secs(7)) {
+          break;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+      }
+      if failed || started.is_none() {
+        failures += 1;
+        println!(
+          "sample {}: stopped/failed; {}",
+          i + 1,
+          backend
+            .handle("playback_diagnostics", &json!({}))
+            .await
+            .unwrap()
+        );
+      } else {
+        println!("sample {}: stable for 7 seconds", i + 1);
+      }
+    }
+    if let Some(player) = backend.player.lock().await.take() {
+      player.shutdown();
+    }
+    assert_eq!(failures, 0, "native start failures in batch");
+  }
+  #[tokio::test]
+  #[ignore = "requires cached Premium login, isolated state and LIME_TEST_TRACK_IDS_FILE"]
+  async fn native_start_failure_retries_once_and_respects_pause() {
+    session::ALLOW_IN_TESTS.store(true, std::sync::atomic::Ordering::Relaxed);
+    let ids: Vec<String> = serde_json::from_slice(
+      &std::fs::read(std::env::var("LIME_TEST_TRACK_IDS_FILE").unwrap()).unwrap(),
+    )
+    .unwrap();
+    let backend = Arc::new(Backend::new());
+    backend
+      .handle("set_volume", &json!({"volume":15}))
+      .await
+      .unwrap();
+    backend
+      .handle("play", &json!({"kind":"song","id":ids[0]}))
+      .await
+      .unwrap();
+    async fn playing(backend: &Arc<Backend>) {
+      let deadline = Instant::now() + Duration::from_secs(35);
+      while Instant::now() < deadline {
+        if backend.queue.lock().await.playing {
+          return;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+      }
+      panic!("native playback did not start");
+    }
+    async fn end(backend: &Arc<Backend>, request: Option<u64>) {
+      let player = backend.player.lock().await.as_ref().unwrap().clone();
+      let q = backend.queue.lock().await;
+      let uri = librespot_core::SpotifyUri::from_uri(&q.current_uri().unwrap()).unwrap();
+      let id = request.or(q.request_id).unwrap();
+      drop(q);
+      let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+      tx.send(PlayerEvent::EndOfTrack {
+        track_id: uri,
+        play_request_id: id,
+      })
+      .unwrap();
+      drop(tx);
+      backend.clone().events(player, rx).await;
+    }
+    playing(&backend).await;
+    let first = backend.queue.lock().await.request_id.unwrap();
+    end(&backend, None).await;
+    tokio::time::sleep(Duration::from_millis(650)).await;
+    playing(&backend).await;
+    let second = backend.queue.lock().await.request_id.unwrap();
+    assert_ne!(first, second);
+    assert!(backend.queue.lock().await.retry_used);
+    end(&backend, Some(first)).await;
+    assert!(
+      backend.queue.lock().await.playing,
+      "stale end stopped the replacement request"
+    );
+    end(&backend, None).await;
+    tokio::time::sleep(Duration::from_millis(650)).await;
+    {
+      let q = backend.queue.lock().await;
+      assert!(!q.playing && !q.retry_pending && !q.error.is_empty());
+      assert_eq!(q.request_id, Some(second));
+      assert_eq!(q.index, 0);
+    }
+    {
+      // A queued Playing notification from the failed decoder must not erase
+      // the failure or make the UI appear to be playing after we stopped it.
+      let player = backend.player.lock().await.as_ref().unwrap().clone();
+      let uri =
+        librespot_core::SpotifyUri::from_uri(&backend.queue.lock().await.current_uri().unwrap())
+          .unwrap();
+      let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+      tx.send(PlayerEvent::Playing {
+        track_id: uri,
+        play_request_id: second,
+        position_ms: 1000,
+      })
+      .unwrap();
+      drop(tx);
+      backend.clone().events(player, rx).await;
+      let q = backend.queue.lock().await;
+      assert!(
+        !q.playing && !q.error.is_empty(),
+        "late Playing hid the stopped decoder failure"
+      );
+    }
+    backend.handle("play_pause", &json!({})).await.unwrap();
+    playing(&backend).await;
+    let third = backend.queue.lock().await.request_id;
+    assert!(!backend.queue.lock().await.retry_used);
+    end(&backend, None).await;
+    backend.handle("pause", &json!({})).await.unwrap();
+    tokio::time::sleep(Duration::from_millis(750)).await;
+    {
+      let q = backend.queue.lock().await;
+      assert!(!q.playing && !q.retry_pending && !q.play_intent);
+      assert_eq!(
+        q.request_id, third,
+        "pause was overwritten by an automatic retry"
+      );
+    }
+    end(&backend, None).await;
+    assert!(
+      backend.queue.lock().await.error.is_empty(),
+      "an end arriving after Pause created a false failure"
+    );
+    if let Some(player) = backend.player.lock().await.take() {
+      player.shutdown();
+    }
+    println!("Verified one retry, no queue skip, stale-end rejection, explicit resume and pause cancellation");
+  }
   #[test]
   fn playlist_item_envelope_maps_to_a_playable_song() {
     let value = json!({"item":{"id":"0123456789012345678901","name":"Fixture song","type":"track","duration_ms":120000,"artists":[{"name":"Fixture artist"}]}});

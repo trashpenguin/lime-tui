@@ -95,5 +95,17 @@ func TestNativeLiveSpectrumTracksOutput(t *testing.T) {
 	if !resumed {
 		t.Fatal("spectrum did not resume after seek")
 	}
+	diagnostic, err := eng.PlaybackDiagnostics()
+	if err != nil || len(diagnostic.Events) == 0 || len(diagnostic.Events) > 64 {
+		t.Fatal("live playback trace unavailable or unbounded", err)
+	}
+	loaded, played := false, false
+	for _, event := range diagnostic.Events {
+		loaded = loaded || event.Event == "load_sent"
+		played = played || event.Event == "playing"
+	}
+	if !loaded || !played {
+		t.Fatal("diagnostic trace did not capture actual playback")
+	}
 	t.Logf("live frames=%d changing=%d; pause silence and seek/resume passed", active, changing)
 }

@@ -112,9 +112,9 @@
           "ecosystem_specific": {
             "affected_functions": null,
             "affects": {
+              "functions": [],
               "arch": [],
-              "os": [],
-              "functions": []
+              "os": []
             }
           },
           "database_specific": {

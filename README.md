@@ -1,12 +1,12 @@
 <p align="center"><img src="assets/lime.png" alt="Lime TUI logo" width="96"></p>
 
-# Lime TUI v1.0.2
+# Lime TUI v1.0.3
 
 **Your music. Your terminal.**
 
 A Spotify terminal player for Windows, combining Pomme's Go/Bubble Tea interface with a native Rust playback engine adapted from spotatui.
 
-[Download Windows x64](https://github.com/trashpenguin/lime-tui/releases/download/v1.0.2/LimeTUI-1.0.2-windows-x64.zip) · [Release notes](https://github.com/trashpenguin/lime-tui/releases/tag/v1.0.2) · [Changelog](CHANGELOG.md)
+[Download Windows x64](https://github.com/trashpenguin/lime-tui/releases/download/v1.0.3/LimeTUI-1.0.3-windows-x64.zip) · [Release notes](https://github.com/trashpenguin/lime-tui/releases/tag/v1.0.3) · [Changelog](CHANGELOG.md)
 
 **Initial preview:** the binaries are unsigned. Spotify distribution authorization and broader clean-machine/hardware qualification remain unresolved. See [release readiness](RELEASE-READINESS.md) and the [Spotify integration review](SPOTIFY-DISTRIBUTION-REVIEW.md). Publishing this repository does not establish Spotify approval.
 
@@ -42,6 +42,7 @@ Windows 10/11 x64 is the supported target. If Windows reports a missing VCRUNTIM
 | Space | Play/pause |
 | `n` / `p` | Next/previous; previous restarts after the first 3 seconds |
 | `a` / `A` while browsing | Append to queue / insert after current track |
+| `F12` | Save a playback support report beside Lime.exe |
 | `H` on the player screen | Refresh Spotify history (honors server cooldowns) |
 | `L` | Library; Tab cycles songs, albums, playlists, artists and liked songs |
 | `r` in the library | Reload the current page / retry a failed library load |
@@ -71,6 +72,12 @@ track. Enter, `a` and `A` perform the same actions. The page stays open to show
 progress and confirmed results; Esc returns to the player. Failed actions keep
 their error visible so you can retry. Press `r` or click **Retry** after a page
 load fails.
+
+## Playback recovery and support
+
+A stream that ends unexpectedly during startup gets one fresh load of the same track. A repeated or later premature ending shows an error instead of silently being treated as a finished song. Normal queue endings still follow repeat settings. Pause, track changes and device handoffs cancel pending recovery; recovery does not reclaim another device’s playback. Space explicitly retries after a playback error, and R reconnects.
+
+If a song still stops, press **F12** soon afterward. Lime writes **Lime-playback-report.json beside Lime.exe**. It contains build/system information and the last 64 playback event types, request counters, positions and connection flags. It excludes account names, song/artist identifiers, credentials, tokens, profile paths and raw logs. No report is uploaded automatically. Attach this file to a bug report so the failure can be investigated even if you forgot the song. The portable folder must be writable.
 
 ## Recently played
 
@@ -127,4 +134,4 @@ The optional `scripts/PlaybackSoak.py` requires `--allow-audio`, a cached Premiu
 
 ## Credits and license
 
-Lime TUI builds on [Pomme TUI](https://github.com/trashpenguin/pomme-tui), the MIT frontend from [applemusic-tui](https://github.com/k1y0miiii/applemusic-tui), and [spotatui](https://github.com/LargeModGames/spotatui). All upstream notices remain intact. See [NOTICE.md](NOTICE.md), [LICENSE](LICENSE) and the dependency notices. The backend source retains its upstream package/module versions; the Lime application release is v1.0.2.
+Lime TUI builds on [Pomme TUI](https://github.com/trashpenguin/pomme-tui), the MIT frontend from [applemusic-tui](https://github.com/k1y0miiii/applemusic-tui), and [spotatui](https://github.com/LargeModGames/spotatui). All upstream notices remain intact. See [NOTICE.md](NOTICE.md), [LICENSE](LICENSE) and the dependency notices. The backend source retains its upstream package/module versions; the Lime application release is v1.0.3.

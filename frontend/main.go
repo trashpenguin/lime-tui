@@ -877,6 +877,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.statsRes = msg.res
 			m.statsErr = ""
 		}
+	case playbackReportMsg:
+		m.note = "Saved " + playbackReportName + " beside Lime.exe"
+		if msg.err != nil {
+			m.note = "Could not save playback report beside Lime.exe"
+		} else if !msg.traceAvailable {
+			m.note += " (trace unavailable)"
+		}
+		m.noteAt = m.t
 	case spotifyHistoryMsg:
 		return m.applySpotifyHistory(msg)
 	case libraryActionMsg:
@@ -946,6 +954,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		next, command := m.updateMouse(msg)
 		return withVisibleArtwork(next, command)
 	case tea.KeyMsg:
+		if msg.Type == tea.KeyF12 && m.phase == phaseReady {
+			return m, playbackSupportCmd(m.eng)
+		}
 		if m.lyricsOpen && (msg.String() == "esc" || msg.String() == "l") {
 			m.lyricsOpen = false
 			return m, nil

@@ -36,7 +36,7 @@
         "vendor/spotatui-librespot-playback/Cargo.toml": "a91dbe0cb891632422f6a00edfb0312b8bf446b5d08add41de030ebff42c0ce1"
       },
       "source_tree_sha256": {
-        "src": "48449e1cac89b246188fb823ea1bb344d00cee399abada8545a966e707ec789c",
+        "src": "8bcd2817b4bcb598a82167fd8238df0d712189bd5b7679cc3ce042dcd744a124",
         "vendor/spotatui-librespot-core/src": "5180e840530e5c29e708f6de96fdedd2e6b8301ad53ce00aa26383e069f4de94",
         "vendor/spotatui-librespot-playback/src": "93692c7c1b0d4b28f52ad73c611d0a453311a63fb73e3e94b8e6efb69b538fac"
       }

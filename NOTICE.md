@@ -18,3 +18,5 @@ Visualizer change in v1.0.1: optional PCM observer in a local spotatui-librespot
 Library interaction changes in v1.0.1: clickable action controls, in-context loading and acknowledged queue/playback feedback, retryable errors and duplicate-action prevention.
 
 History changes in v1.0.2: bounded account Web API reads, independent background refresh, explicit source labels, local fallback, server cooldown and session-generation cleanup.
+
+Playback changes in v1.0.3: retained decoder request identities in the streaming adapter; bounded premature-start recovery in the Lime bridge; explicit failures, pause/handoff handling, and redacted opt-in support reports.

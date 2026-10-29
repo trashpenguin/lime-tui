@@ -156,7 +156,7 @@ fn install(
 
 /// Unit tests never reach Spotify; the ignored live tests opt in.
 #[cfg(test)]
-pub(super) static ALLOW_IN_TESTS: std::sync::atomic::AtomicBool =
+pub(crate) static ALLOW_IN_TESTS: std::sync::atomic::AtomicBool =
   std::sync::atomic::AtomicBool::new(false);
 
 fn allowed() -> bool {

@@ -1,4 +1,14 @@
-# Lime TUI 1.0.2 validation — 2026-10-30
+# Lime TUI 1.0.3 validation — 2026-10-30
+
+The playback update passed 1,490 Rust library tests (11 ignored), the Go suite/vet, and strict Clippy. Tests cover premature-end classification, bounded recovery, stale request ownership, pause cancellation, trace bounds/non-persistence, report allowlisting and support notifications that leave audio state intact. A real Premium session passed 20 track starts observed for seven seconds each before the fix and 20 after it. The intermittent spontaneous stop was not reproduced. A separate real-player fault-injection test verified one fresh load without advancing the queue, visible failure on a second premature end, stale-end rejection, explicit retry and pause cancellation. Historical qualification and the separate Spotify-history HTTP 429 limitation remain below.
+
+The final optimized helper passed 28 offline protocol requests including the
+redacted playback-diagnostics endpoint. Real queue-end/repeat-track tests and the
+live spectrum pause/seek/resume test passed with this helper; the live trace
+contained actual load/playing events. Go vulnerability checks found no
+vulnerabilities, and the source-bound 356-package Windows audit had zero
+unassessed findings. These checks do not replace testing the affected friend's PC.
+
 
 The history update passed the full Go suite/vet, 1,486 Rust library tests (nine ignored), and strict Clippy. Tests cover authenticated HTTP requests, Spotify order and metadata mapping, empty results, errors/local fallback, long Retry-After seconds and HTTP dates, persistent cooldown without tokens/history, malformed/oversized responses, stale session results, focused selection and disconnect cleanup. Cache entries carry their session generation so a busy cache cannot retain the previous account across logout/re-pairing. The opt-in real-history test was run separately and failed because Spotify returned HTTP 429; it is not counted as a successful account import. The app must display LOCAL until a real history request succeeds.
 

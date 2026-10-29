@@ -185,6 +185,21 @@ func (e *Engine) Search(term string) (SearchResults, error) {
 	return e.results("search", map[string]any{"query": term})
 }
 func (e *Engine) Library() (SearchResults, error) { return e.results("library", nil) }
+func (e *Engine) PlaybackDiagnostics() (PlaybackDiagnostics, error) {
+	var report PlaybackDiagnostics
+	err := e.call("playback_diagnostics", nil, &report)
+	if len(report.Events) > 64 {
+		report.Events = report.Events[len(report.Events)-64:]
+	}
+	for i := range report.Events {
+		switch report.Events[i].Event {
+		case "playing", "paused", "loading", "stopped", "unavailable", "end_of_track", "track_changed", "progress", "handoff", "session_lost", "local_disconnect", "request_play", "request_pause", "load_sent", "early_end", "retry_start", "stream_failed":
+		default:
+			report.Events[i].Event = "other"
+		}
+	}
+	return report, err
+}
 func (e *Engine) RecentHistory() (HistoryPage, error) {
 	var raw struct {
 		Recent            []wireTrack

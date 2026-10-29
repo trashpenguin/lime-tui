@@ -24,6 +24,22 @@ type HistoryPage struct {
 	Tracks     []Track
 	RetryAfter time.Duration
 }
+type PlaybackTraceEvent struct {
+	AtMs           uint64  `json:"atMs"`
+	Event          string  `json:"event"`
+	Request        *uint64 `json:"request"`
+	MatchesCurrent *bool   `json:"matchesCurrent"`
+	PositionMs     uint64  `json:"positionMs"`
+}
+type PlaybackDiagnostics struct {
+	Playing    bool                 `json:"playing"`
+	Loading    bool                 `json:"loading"`
+	HasError   bool                 `json:"hasError"`
+	Connected  bool                 `json:"connected"`
+	Recovering bool                 `json:"recovering"`
+	PositionMs uint64               `json:"positionMs"`
+	Events     []PlaybackTraceEvent `json:"events"`
+}
 type DiscoverySection struct {
 	Title string  `json:"title"`
 	Items []Track `json:"items"`

@@ -906,17 +906,38 @@ impl StreamingPlayer {
 
   /// Play a track by its Spotify URI (e.g., "spotify:track:xxxx")
   pub async fn play_uri(&self, uri: &str) -> Result<()> {
+    self.play_uri_tracked(uri).await.map(|_| ())
+  }
+
+  /// Preserve the decoder request identity for embedders that own their queue.
+  pub async fn play_uri_tracked(&self, uri: &str) -> Result<Option<u64>> {
     let spotify_uri =
       SpotifyUri::from_uri(uri).map_err(|e| anyhow!("Invalid Spotify URI '{}': {:?}", uri, e))?;
 
-    self.route_command(DeferredPlayerCommand::DirectLoad(spotify_uri, true))?;
+    let request = {
+      let mut router = self
+        .command_router
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+      match router.mode {
+        SpircCommandMode::Connected => Some(self.player.load(spotify_uri, true, 0)),
+        SpircCommandMode::Reconnecting => {
+          router
+            .deferred
+            .push(DeferredPlayerCommand::DirectLoad(spotify_uri, true));
+          None
+        }
+        SpircCommandMode::Failed => return Err(anyhow!("Native streaming connection failed")),
+        SpircCommandMode::Shutdown => return Err(anyhow!("Native streaming player is shut down")),
+      }
+    };
 
     let mut state = self.state.lock().await;
     state.is_playing = true;
     state.track_id = Some(uri.to_string());
     state.position_ms = 0;
 
-    Ok(())
+    Ok(request)
   }
 
   /// Load a track by URI without starting playback. Used to restore a paused

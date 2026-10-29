@@ -44,6 +44,9 @@ try:
     call('queue_edit',dict(action='remove',index=999),error=True)
     call('unknown_fixture',error=True)
     assert call('spectrum') == [0.0]*32
+    diagnostic=call('playback_diagnostics')
+    assert not diagnostic['playing'] and len(diagnostic['events'])<=64
+    assert all(key not in diagnostic for key in ['username','track','queue','credentials'])
     history=call('recent_history')
     assert history['recent']==[] and history['err'] and history['retryAfterSeconds']>=60
     call('queue_edit',dict(action='clear'))

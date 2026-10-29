@@ -24,3 +24,4 @@
 **/listening-stats.json
 **/protocol-smoke-profile/
 .DS_Store
+Lime-playback-report.json

@@ -21,3 +21,7 @@ No analytics/telemetry uploader, advertising service or automatic crash-report u
 ## Before public release
 
 A release owner must provide a contact address, publish an appropriate privacy policy and review account disconnection/data deletion behavior against Spotify requirements. Credential-protection changes have local automated and signed-in migration tests. Independent security testing and Spotify/public-distribution approval have not been established. See SPOTIFY-DISTRIBUTION-REVIEW.md for unresolved requirements.
+
+## Optional playback support report
+
+F12 explicitly writes Lime-playback-report.json beside the executable. This adds up to 64 in-memory playback event types, internal numeric request counters, relative elapsed times, positions and connection/error-presence flags to the existing system report. It excludes song/artist/account identifiers, credentials, tokens, profile paths and raw native logs. The rolling trace is not written into the queue/profile and is cleared at process exit or account disconnect. Only pressing F12 exports it; no automatic uploader is added. The report overwrites the previous report of the same name. Delete the JSON file to remove an exported report.
