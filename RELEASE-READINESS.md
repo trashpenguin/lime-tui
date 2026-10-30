@@ -1,4 +1,6 @@
-# Lime TUI 1.0.4 release readiness
+# Lime TUI 1.0.5 release readiness
+
+v1.0.5 adds an official, user-installed Soloist playback adapter, without distributing Spotify binaries or private keys. Official Windows Soloist 1.3.10.30 started through Lime and reported that initial pairing was required; the child stopped on shutdown. The affected account’s actual playback has not been verified here. Controlled tests cover event confirmation, stale-owner rejection, pause/handoff behavior, natural-end queue advancement, redacted errors, encrypted settings and sign-out erasure. The visualizer has no Soloist PCM tap. Historical results below remain limited to their original versions.
 
 v1.0.4 adds typed load-failure diagnostics and corrects the visualizer status after playback errors. It includes visualizer recovery and the sized Windows launcher. The friend’s Premium-account failure has not been reproduced locally; the existing v1.0.3 report loses the underlying load stage. This is a diagnostic preview, not a confirmed repair of that external failure. Historical validation follows.
 

@@ -22,3 +22,5 @@ History changes in v1.0.2: bounded account Web API reads, independent background
 Playback changes in v1.0.3: retained decoder request identities in the streaming adapter; bounded premature-start recovery in the Lime bridge; explicit failures, pause/handoff handling, and redacted opt-in support reports.
 
 v1.0.4 modifies the vendored playback loader to retain typed failure categories through the one-shot completion channel and Unavailable event. It adds categorized diagnostics and player messages, visualizer recovery and default Windows window sizing.
+
+v1.0.5 adds a Lime-specific official Soloist child/WebSocket adapter and setup UI. Windows job containment follows the MIT-licensed spotatui supervisor pattern. Spotify Soloist remains separately downloaded from Spotify and is not part of this distribution.

@@ -43,9 +43,11 @@ A Spotify Premium account is required. No developer client ID is needed.
   ?             Context-sensitive keyboard help
   l             Full-screen lyrics (or click the lyric panel)
   [ / ]         Adjust lyric timing by 0.5 seconds; backslash resets
+  F8            Set up official Spotify Soloist playback
   R             Reconnect the audio engine
   q / Ctrl+C    Quit
 
+  --setup-soloist  Configure or disable official Soloist (Windows)
   --preview     Print a static sample interface without logging in
   --version     Show build version
   --diagnose-system FILE  Write a local support report without account data

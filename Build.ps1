@@ -14,7 +14,7 @@ Invoke-Checked -Tool cargo -ToolArgs @('build','--locked','--release','--manifes
 & (Join-Path $root 'scripts/Build-Resources.ps1') -GoExecutable $GoExecutable -Version $Version
 Invoke-Checked -Tool $GoExecutable -ToolArgs @('-C',(Join-Path $root 'frontend'),'build','-trimpath','-ldflags',"-s -w -X main.version=$Version",'-o',(Join-Path $release 'Lime.exe'),'.')
 Copy-Item -LiteralPath (Join-Path $root 'backend\target\release\spotify-engine.exe') -Destination (Join-Path $release 'lime-engine.exe')
-foreach ($file in @('VERSION','LICENSE','CHANGELOG.md','README.md','NOTICE.md','LICENSE-FRONTEND.txt','LICENSE-SPOTATUI.txt','THIRD-PARTY-NOTICES.txt','VALIDATION.md','SPOTATUI-FEATURES.md','RELEASE-READINESS.md','PRIVACY.md','Start Lime.cmd','Create Lime Shortcut.ps1','SIGNING.md','Sign-Windows.ps1','SPOTIFY-DISTRIBUTION-REVIEW.md','DEPENDENCY-ASSESSMENTS.json','VEX.json','DEPENDENCY-AUDIT.json')) {
+foreach ($file in @('VERSION','LICENSE','CHANGELOG.md','README.md','NOTICE.md','LICENSE-FRONTEND.txt','LICENSE-SPOTATUI.txt','THIRD-PARTY-NOTICES.txt','VALIDATION.md','SPOTATUI-FEATURES.md','RELEASE-READINESS.md','PRIVACY.md','SOLOIST-SETUP.md','Setup Soloist.cmd','Start Lime.cmd','Create Lime Shortcut.ps1','SIGNING.md','Sign-Windows.ps1','SPOTIFY-DISTRIBUTION-REVIEW.md','DEPENDENCY-ASSESSMENTS.json','VEX.json','DEPENDENCY-AUDIT.json')) {
     if (Test-Path -LiteralPath (Join-Path $root $file)) { Copy-Item -LiteralPath (Join-Path $root $file) -Destination $release }
 }
 Copy-Item -LiteralPath (Join-Path $root 'assets') -Destination $release -Recurse -Force

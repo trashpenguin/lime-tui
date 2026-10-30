@@ -32,12 +32,12 @@ func init() {
 		_ = json.Unmarshal(scanner.Bytes(), &request)
 		result := any(true)
 		if request.Method == "hello" {
-			result = map[string]any{"protocol": 1, "authed": false}
+			result = map[string]any{"protocol": 1, "authed": os.Getenv("AMTUI_FAKE_SOLOIST_CHILD") == "1"}
 		}
 		if request.Method == "login_begin" {
 			result = map[string]any{"url": "https://example.invalid/pair", "code": "TEST-CODE"}
 		}
-		if request.Method == "login_wait" {
+		if request.Method == "login_wait" || request.Method == "soloist_start" {
 			go func() {
 				for {
 					_ = os.WriteFile(os.Getenv("AMTUI_FAKE_LOGIN_MARKER"), []byte("alive"), 0600)
@@ -98,5 +98,54 @@ func TestConnectCancellationTerminatesOwnedLoginHelper(t *testing.T) {
 	last, err := os.Stat(marker)
 	if err != nil || !first.ModTime().Equal(last.ModTime()) {
 		t.Fatal("login helper survived cancellation")
+	}
+}
+
+func TestSoloistStartupCancellationClosesTheOwnedEngine(t *testing.T) {
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	marker := filepath.Join(t.TempDir(), "soloist-starting")
+	t.Setenv("AMTUI_NATIVE_BACKEND", exe)
+	t.Setenv("AMTUI_FAKE_LOGIN_CHILD", "1")
+	t.Setenv("AMTUI_FAKE_SOLOIST_CHILD", "1")
+	t.Setenv("AMTUI_FAKE_LOGIN_MARKER", marker)
+	ConfigureSoloist(SoloistConfig{Path: "fixture", Key: "private-fixture"}, nil)
+	t.Cleanup(func() { ConfigureSoloist(SoloistConfig{}, nil) })
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	canceled := make(chan time.Time, 1)
+	go func() {
+		deadline := time.Now().Add(15 * time.Second)
+		for time.Now().Before(deadline) {
+			if _, err := os.Stat(marker); err == nil {
+				canceled <- time.Now()
+				cancel()
+				return
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+		canceled <- time.Now()
+		cancel()
+	}()
+	eng, err := ConnectContext(ctx, func(string) {})
+	if eng != nil {
+		eng.Close()
+	}
+	if err == nil {
+		t.Fatal("cancelled Soloist startup succeeded")
+	}
+	if time.Since(<-canceled) > 2*time.Second {
+		t.Fatal("Soloist startup ignored cancellation")
+	}
+	first, err := os.Stat(marker)
+	if err != nil {
+		t.Fatal("Soloist startup was not reached")
+	}
+	time.Sleep(150 * time.Millisecond)
+	last, err := os.Stat(marker)
+	if err != nil || !first.ModTime().Equal(last.ModTime()) {
+		t.Fatal("engine survived startup cancellation")
 	}
 }

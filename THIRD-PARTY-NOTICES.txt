@@ -1,4 +1,4 @@
-Third-party dependency notices for Lime TUI 1.0.4
+Third-party dependency notices for Lime TUI 1.0.5
 
 Includes build/test dependencies as a conservative superset. Exact dependency versions are in Cargo.lock and go.sum. Standard library Go runtime: BSD-3-Clause.
 

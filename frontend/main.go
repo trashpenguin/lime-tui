@@ -262,6 +262,9 @@ type model struct {
 }
 
 func (m model) visualizerTitle() string {
+	if m.st.PlaybackEngine == "soloist" {
+		return "VISUALIZER · SOLOIST · NO AUDIO TAP"
+	}
 	if m.st.Err != "" {
 		return "VISUALIZER · PLAYBACK ERROR"
 	}
@@ -292,7 +295,7 @@ func (m *model) failVisualizer() {
 
 // Retry only the spectrum reader, without interrupting playback.
 func (m *model) retryVisualizer() tea.Cmd {
-	if m.phase != phaseReady || m.eng == nil || !m.vizTerminal ||
+	if m.phase != phaseReady || m.eng == nil || m.eng.Soloist() || !m.vizTerminal ||
 		m.vizService != nil || m.vizOpening || m.t < m.vizRetryAt {
 		return nil
 	}
@@ -679,8 +682,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case statusMsg:
 		m.status = string(msg)
 		return m, listenStatus(m.statusCh)
+	case soloistSetupMsg:
+		loadSoloistSettings()
+		if msg.err != nil {
+			m.note, m.noteAt = "Soloist setup cancelled or failed", m.t
+			return m, nil
+		}
+		return m.reconnect("applying playback engine…")
 	case readyMsg:
 		m.phase, m.eng = phaseReady, msg.eng
+		if m.eng.Soloist() {
+			m.st.PlaybackEngine = "soloist"
+			m.vizTerminal = true
+		}
 		m.recentSyncBusy = false
 		cmds := []tea.Cmd{
 			m.fetchState(),
@@ -689,7 +703,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		// System audio capture outlives the browser, so a reconnect keeps the
 		// visualizer it already has instead of opening a second source.
-		if m.vizService == nil {
+		if m.vizService == nil && !m.eng.Soloist() {
 			m.vizOpening = true
 			cmds = append(cmds, openNativeVisualizerCmd(m.eng))
 		}
@@ -1127,6 +1141,8 @@ func (m model) updateKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "?":
 		m.helpPage = 0
 		m.helpOpen = true
+	case "f8":
+		return m, setupSoloistCmd()
 	case "H":
 		cmd := m.syncSpotifyHistory()
 		return m, cmd
@@ -1955,6 +1971,12 @@ func main() {
 	}
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
+		case "--setup-soloist":
+			if err := runSoloistSetup(); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
+			return
 		case "--diagnose-system":
 			if len(os.Args) != 3 {
 				log.Fatal("Use --diagnose-system with an output JSON path")

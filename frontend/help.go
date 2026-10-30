@@ -126,6 +126,7 @@ var helpSections = []helpSection{
 		{"?", "this help"},
 		{"a", "account menu"},
 		{"R", "reload engine"},
+		{"F8", "Soloist setup"},
 		{"q / ctrl+c", "quit"},
 	}},
 }

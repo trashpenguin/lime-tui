@@ -50,7 +50,7 @@ func (m *model) clearSpotifyPersonalData() error {
 		return errors.New("local profile directory is unavailable")
 	}
 	var failures []error
-	for _, name := range []string{"search-history.json", "listening-stats.json", "listening-stats.json.tmp"} {
+	for _, name := range []string{"search-history.json", "listening-stats.json", "listening-stats.json.tmp", "soloist-settings.json", "soloist-settings.json.dpapi"} {
 		if err := os.Remove(filepath.Join(dir, name)); err != nil && !os.IsNotExist(err) {
 			failures = append(failures, fmt.Errorf("remove %s: %w", name, err))
 		}

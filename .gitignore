@@ -25,3 +25,7 @@
 **/protocol-smoke-profile/
 .DS_Store
 Lime-playback-report.json
+**/soloist-settings.json
+**/soloist-settings.json.dpapi
+**/soloist_credentials.yml
+**/lime-soloist/

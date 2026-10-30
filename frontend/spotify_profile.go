@@ -29,6 +29,7 @@ func setupSpotifyProfile() {
 	os.Setenv("XDG_CONFIG_HOME", filepath.Join(root, "config"))
 	os.Setenv("XDG_CACHE_HOME", filepath.Join(root, "cache"))
 	os.Setenv("XDG_STATE_HOME", filepath.Join(root, "state"))
+	loadSoloistSettings()
 	if os.Getenv("GOMEMLIMIT") == "" {
 		debug.SetMemoryLimit(64 << 20)
 	}

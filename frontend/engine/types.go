@@ -9,6 +9,7 @@ type Track struct {
 	Art                      string
 }
 type State struct {
+	PlaybackEngine                string
 	Authed, Playing, Initializing bool
 	Pos, Dur                      time.Duration
 	Volume                        int
@@ -34,13 +35,14 @@ type PlaybackTraceEvent struct {
 	FailureKind    *int    `json:"failureKind,omitempty"`
 }
 type PlaybackDiagnostics struct {
-	Playing    bool                 `json:"playing"`
-	Loading    bool                 `json:"loading"`
-	HasError   bool                 `json:"hasError"`
-	Connected  bool                 `json:"connected"`
-	Recovering bool                 `json:"recovering"`
-	PositionMs uint64               `json:"positionMs"`
-	Events     []PlaybackTraceEvent `json:"events"`
+	PlaybackEngine string               `json:"playbackEngine,omitempty"`
+	Playing        bool                 `json:"playing"`
+	Loading        bool                 `json:"loading"`
+	HasError       bool                 `json:"hasError"`
+	Connected      bool                 `json:"connected"`
+	Recovering     bool                 `json:"recovering"`
+	PositionMs     uint64               `json:"positionMs"`
+	Events         []PlaybackTraceEvent `json:"events"`
 }
 type DiscoverySection struct {
 	Title string  `json:"title"`

@@ -12,10 +12,11 @@ import (
 )
 
 type Engine struct {
-	rpc    *rpcClient
-	cmd    *exec.Cmd
-	waited chan struct{}
-	once   sync.Once
+	soloist SoloistConfig
+	rpc     *rpcClient
+	cmd     *exec.Cmd
+	waited  chan struct{}
+	once    sync.Once
 }
 
 func backendPath() (string, error) {
@@ -97,7 +98,22 @@ func ConnectContext(parent context.Context, status func(string)) (*Engine, error
 			return nil, err
 		}
 	}
-	status("connected · Spotify native playback")
+	config, configErr := currentSoloistConfig()
+	if configErr != nil {
+		engine.Close()
+		return nil, configErr
+	}
+	engine.soloist = config
+	if engine.Soloist() {
+		status("starting official Spotify Soloist…")
+		if err := engine.startSoloistContext(parent); err != nil {
+			engine.Close()
+			return nil, err
+		}
+		status("Soloist ready · select Lime Soloist in Spotify's device menu to pair")
+	} else {
+		status("connected · Spotify native playback")
+	}
 	return engine, nil
 }
 
@@ -128,6 +144,8 @@ func methodTimeout(method string) time.Duration {
 	switch method {
 	case "lyrics":
 		return 10 * time.Second
+	case "soloist_start":
+		return 40 * time.Second
 	case "artwork":
 		return 15 * time.Second
 	case "play", "reload", "jump", "play_pause", "next", "prev", "queue_edit":
@@ -150,13 +168,14 @@ func (e *Engine) State() (State, error) {
 		Now                           *wireTrack
 		Queue                         []wireTrack
 		QueuePos                      int
+		PlaybackEngine                string
 		Err                           string
 	}
 	if err := e.call("state", nil, &raw); err != nil {
 		return State{}, err
 	}
 	state := State{Authed: raw.Authed, Playing: raw.Playing, Initializing: raw.Initializing, Pos: time.Duration(raw.PosMs) * time.Millisecond, Dur: time.Duration(raw.DurMs) * time.Millisecond,
-		Volume: raw.Volume, Shuffle: raw.Shuffle, Repeat: raw.Repeat, Queue: tracks(raw.Queue), QueuePos: raw.QueuePos, Err: raw.Err}
+		Volume: raw.Volume, Shuffle: raw.Shuffle, Repeat: raw.Repeat, Queue: tracks(raw.Queue), QueuePos: raw.QueuePos, Err: raw.Err, PlaybackEngine: raw.PlaybackEngine}
 	if raw.Now != nil {
 		state.Now = raw.Now.track()
 	}
@@ -188,6 +207,9 @@ func (e *Engine) Library() (SearchResults, error) { return e.results("library", 
 func (e *Engine) PlaybackDiagnostics() (PlaybackDiagnostics, error) {
 	var report PlaybackDiagnostics
 	err := e.call("playback_diagnostics", nil, &report)
+	if report.PlaybackEngine != "native" && report.PlaybackEngine != "soloist" {
+		report.PlaybackEngine = ""
+	}
 	if len(report.Events) > 64 {
 		report.Events = report.Events[len(report.Events)-64:]
 	}
@@ -228,8 +250,13 @@ func (e *Engine) Account() (Account, error) {
 	err := e.call("account", nil, &account)
 	return account, err
 }
-func (e *Engine) SignOut() error         { return e.call("sign_out", nil, nil) }
-func (e *Engine) Reload() error          { return e.call("reload", nil, nil) }
+func (e *Engine) SignOut() error { return e.call("sign_out", nil, nil) }
+func (e *Engine) Reload() error {
+	if e.Soloist() {
+		return e.startSoloist()
+	}
+	return e.call("reload", nil, nil)
+}
 func (e *Engine) PlayPause() error       { return e.call("play_pause", nil, nil) }
 func (e *Engine) Next() error            { return e.call("next", nil, nil) }
 func (e *Engine) Prev() error            { return e.call("prev", nil, nil) }

@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.0.5 — 2026-10-30
+
+- Add official Spotify Soloist playback for accounts where native librespot audio-key requests fail. Soloist is user-installed from Spotify and requires the user’s own key and initial device pairing.
+- Add F8 and Setup Soloist.cmd with hidden key entry, current-user Windows DPAPI storage, a native-mode switch, and sign-out cleanup.
+- Route queue starts, play/pause, seek, volume, next/previous, shuffle and repeat through the selected engine. Confirm playback using events and respect pauses and device handoffs.
+- Bind Soloist control to an ephemeral loopback port, verify endpoint ownership, bound frames and command queues, redact remote errors, and terminate the owned child on shutdown or parent death.
+- Label Soloist’s visualizer NO AUDIO TAP; no synthetic audio visualization is shown.
+- Verify startup and pairing state with Spotify’s official Windows build and controlled transport/queue tests. Playback on the affected friend’s account awaits that user’s pairing and validation.
+
+
 ## v1.0.4 — 2026-10-30
 
 - Preserve bounded track-load failure stages (metadata, availability, format, download, audio key, decode or seek) and numeric error categories in F12 reports; show a specific error in the player. Raw logs, tokens, track IDs and account data remain excluded.

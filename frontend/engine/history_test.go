@@ -20,7 +20,7 @@ func TestPlaybackDiagnosticsDropsUnexpectedPrivateFields(t *testing.T) {
 			return
 		}
 		_ = json.NewEncoder(server).Encode(map[string]any{"id": request["id"], "result": map[string]any{
-			"username": "private-fixture", "track_id": "private-fixture", "connected": true,
+			"username": "private-fixture", "track_id": "private-fixture", "connected": true, "playbackEngine": "private-fixture",
 			"events": []map[string]any{{"event": "private-fixture", "title": "private-fixture", "failureStage": "private-fixture", "failureKind": 999}, {"event": "stopped", "positionMs": 1000}, {"event": "unavailable", "failureStage": "audio_key", "failureKind": 14}},
 		}})
 	}()

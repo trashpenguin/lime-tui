@@ -3,16 +3,19 @@
 //! its bounded queue and does not start spotatui's terminal, artwork, or plugins.
 use crate::infra::player::{PlayerEvent, StreamingConfig, StreamingPlayer};
 use crate::infra::spotify::{self, credentials, session};
-use anyhow::{Context, Result, anyhow, bail};
+use anyhow::{anyhow, bail, Context, Result};
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use std::{
   io::Write,
   sync::Arc,
   time::{Duration, Instant},
 };
-use tokio::sync::{Mutex, Semaphore, mpsc};
+use tokio::sync::{mpsc, Mutex, Semaphore};
+
+#[path = "pomme_soloist.rs"]
+mod soloist;
 
 const MAX_QUEUE: usize = 1000;
 const MAX_LINE: usize = 64 * 1024;
@@ -133,6 +136,8 @@ struct Queue {
   #[serde(skip)]
   trace: PlaybackTrace,
   #[serde(skip)]
+  soloist_track_confirmed: bool,
+  #[serde(skip)]
   request_id: Option<u64>,
   #[serde(skip)]
   generation: u64,
@@ -211,6 +216,7 @@ impl Queue {
 }
 
 struct Backend {
+  soloist: Mutex<Option<Arc<soloist::Player>>>,
   queue: Mutex<Queue>,
   player: Mutex<Option<Arc<StreamingPlayer>>>,
   // Commands that change queue ownership are serialized. Catalog calls and
@@ -248,6 +254,7 @@ impl Backend {
     queue.repeat %= 3;
     Self {
       queue: Mutex::new(queue),
+      soloist: Mutex::new(None),
       player: Mutex::new(None),
       commands: Mutex::new(()),
       login: Mutex::new(None),
@@ -268,6 +275,9 @@ impl Backend {
   }
 
   async fn ensure_player(self: &Arc<Self>) -> Result<Arc<StreamingPlayer>> {
+    if self.soloist.lock().await.is_some() {
+      bail!("Soloist owns playback");
+    }
     let mut slot = self.player.lock().await;
     if let Some(player) = slot.as_ref() {
       return Ok(player.clone());
@@ -532,8 +542,13 @@ impl Backend {
       q.trace.push("request_play", None, Some(true), 0);
     }
     let result = async {
-      let player = self.ensure_player().await?;
-      self.load_index(&player, index, false).await
+      let official = self.soloist.lock().await.clone();
+      if let Some(player) = official {
+        soloist::load(self, &player, index).await
+      } else {
+        let player = self.ensure_player().await?;
+        self.load_index(&player, index, false).await
+      }
     }
     .await;
     if let Err(error) = result {
@@ -578,6 +593,7 @@ impl Backend {
   }
 
   async fn state(&self) -> Value {
+    let official = self.soloist.lock().await.clone();
     let player = self.player.lock().await.clone();
     let mut q = self.queue.lock().await;
     let recovering = player.as_ref().is_some_and(|p| p.is_recovering());
@@ -595,7 +611,7 @@ impl Backend {
       }
     }
     json!({"authed": credentials::streaming_credentials_are_cached().unwrap_or(false),
-            "playing": q.playing, "initializing": q.loading || recovering, "posMs": q.position_ms(),
+            "playing": q.playing, "initializing": q.loading || recovering, "playbackEngine": if official.is_some() {"soloist"} else {"native"}, "posMs": q.position_ms(),
             "durMs": q.tracks.get(q.index).map(|t| t.dur_ms).unwrap_or(0),
             "volume": q.volume, "shuffle": q.shuffle, "repeat": q.repeat,
             "now": q.tracks.get(q.index), "queue": q.tracks, "queuePos": q.index, "err": q.error})
@@ -604,14 +620,21 @@ impl Backend {
   async fn handle(self: &Arc<Self>, method: &str, p: &Value) -> Result<Value> {
     match method {
       "hello" => {
-        return Ok(json!({"protocol":1, "authed":credentials::streaming_credentials_are_cached()?}));
+        return Ok(
+          json!({"protocol":1, "authed":credentials::streaming_credentials_are_cached()?}),
+        );
+      }
+      "soloist_start" => {
+        soloist::start(self, p).await?;
+        return Ok(json!({}));
       }
       "state" => return Ok(self.state().await),
       "playback_diagnostics" => {
+        let official = self.soloist.lock().await.clone();
         let player = self.player.lock().await.clone();
         let q = self.queue.lock().await;
         return Ok(
-          json!({"playing":q.playing,"loading":q.loading,"positionMs":q.position_ms(),"hasError":!q.error.is_empty(),"connected":player.as_ref().is_some_and(|p|p.is_connected()),"recovering":player.as_ref().is_some_and(|p|p.is_recovering()),"events":q.trace.entries}),
+          json!({"playing":q.playing,"loading":q.loading,"positionMs":q.position_ms(),"hasError":!q.error.is_empty(),"playbackEngine":if official.is_some(){"soloist"}else{"native"},"connected":official.as_ref().map(|p|p.connected.load(std::sync::atomic::Ordering::Acquire)).unwrap_or_else(||player.as_ref().is_some_and(|p|p.is_connected())),"recovering":player.as_ref().is_some_and(|p|p.is_recovering()),"events":q.trace.entries}),
         );
       }
       "recent_history" => {
@@ -621,6 +644,9 @@ impl Backend {
         );
       }
       "spectrum" => {
+        if self.soloist.lock().await.is_some() {
+          bail!("Soloist audio analysis is not available");
+        }
         let q = self.queue.lock().await;
         let active = q.playing && !q.loading;
         drop(q);
@@ -811,6 +837,7 @@ impl Backend {
       None
     };
     let _guard = self.commands.lock().await;
+    let official = self.soloist.lock().await.clone();
     match method {
       "play" => {
         let tracks = resolved.unwrap();
@@ -841,7 +868,9 @@ impl Backend {
         if let Some(index) = index {
           self.start_index(index).await?;
         } else {
-          if let Some(player) = self.player.lock().await.as_ref() {
+          if let Some(player) = official.as_ref() {
+            player.send(soloist::command("pause"))?;
+          } else if let Some(player) = self.player.lock().await.as_ref() {
             player.pause();
           }
           self.queue.lock().await.freeze();
@@ -867,18 +896,23 @@ impl Backend {
           q.trace.push("request_pause", None, Some(true), position);
           q.freeze();
           drop(q);
-          if let Some(player) = self.player.lock().await.as_ref() {
+          if let Some(player) = official.as_ref() {
+            player.send(soloist::command("pause"))?;
+          } else if let Some(player) = self.player.lock().await.as_ref() {
             player.pause();
           }
         } else {
           let index = q.index;
           let position = q.position;
-          let restart = !q.error.is_empty();
+          let restart = !q.error.is_empty() || (official.is_some() && !q.soloist_track_confirmed);
           q.play_intent = true;
           drop(q);
           let existing = self.player.lock().await.as_ref().cloned();
           if restart {
             self.start_index(index).await?;
+          } else if let Some(player) = official.as_ref() {
+            player.send(soloist::command("activate"))?;
+            player.send(soloist::command("play"))?;
           } else if let Some(player) = existing {
             player.play();
           } else {
@@ -896,14 +930,18 @@ impl Backend {
         let playing = q.playing;
         q.reset_clock(at, playing);
         drop(q);
-        if let Some(player) = self.player.lock().await.as_ref() {
+        if let Some(player) = official.as_ref() {
+          player.send(json!({"type":"command","command":"seek","position_ms":at}))?;
+        } else if let Some(player) = self.player.lock().await.as_ref() {
           player.seek(at.min(u32::MAX as u64) as u32);
         }
       }
       "set_volume" => {
         let volume = number(p, "volume").min(100) as u8;
         self.queue.lock().await.volume = volume;
-        if let Some(player) = self.player.lock().await.as_ref() {
+        if let Some(player) = official.as_ref() {
+          player.send(json!({"type":"command","command":"set_volume","volume":volume}))?;
+        } else if let Some(player) = self.player.lock().await.as_ref() {
           player.set_volume(volume);
         }
       }
@@ -931,7 +969,9 @@ impl Backend {
             q.index = 0;
             q.position = 0;
             drop(q);
-            if let Some(player) = self.player.lock().await.as_ref() {
+            if let Some(player) = official.as_ref() {
+              player.send(soloist::command("pause"))?;
+            } else if let Some(player) = self.player.lock().await.as_ref() {
               player.stop();
             }
           }
@@ -952,7 +992,9 @@ impl Backend {
               let next = q.index;
               let empty = q.tracks.is_empty();
               drop(q);
-              if let Some(player) = self.player.lock().await.as_ref() {
+              if let Some(player) = official.as_ref() {
+                player.send(soloist::command("pause"))?;
+              } else if let Some(player) = self.player.lock().await.as_ref() {
                 player.stop();
               }
               if !empty && playing {
@@ -980,6 +1022,9 @@ impl Backend {
         }
       }
       "reload" => {
+        if official.is_some() {
+          bail!("Restart Soloist through Lime's reconnect control");
+        }
         if let Some(player) = self.player.lock().await.take() {
           player.shutdown();
         }
@@ -1001,6 +1046,10 @@ impl Backend {
         }
       }
       "sign_out" => {
+        if let Some(player) = self.soloist.lock().await.take() {
+          player.shutdown().await;
+        }
+        soloist::clear_session()?;
         spotify::account_history::clear();
         if let Some(player) = self.player.lock().await.take() {
           player.shutdown();
@@ -1090,7 +1139,7 @@ impl Backend {
     if matches!(kind, "songs" | "song" | "track" | "") {
       let value = get(&format!("tracks/{id}"), &[]).await?;
       return Ok(vec![
-        map_track(&value, "songs").context("Spotify returned no track")?,
+        map_track(&value, "songs").context("Spotify returned no track")?
       ]);
     }
     let (path, key) = match kind {
@@ -1396,6 +1445,9 @@ pub async fn run() -> Result<()> {
             };
             let _=tx.send(reply).await;
         });
+  }
+  if let Some(player) = backend.soloist.lock().await.take() {
+    player.shutdown().await;
   }
   requests.abort_all();
   while requests.join_next().await.is_some() {}
