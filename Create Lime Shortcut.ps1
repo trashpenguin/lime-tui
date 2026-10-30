@@ -7,6 +7,7 @@ if (!(Test-Path -LiteralPath $folder)) {throw 'Shortcut destination directory do
 $shell=New-Object -ComObject WScript.Shell
 $shortcut=$shell.CreateShortcut($Destination)
 $shortcut.TargetPath=$exe
+$shortcut.Arguments='--window'
 $shortcut.WorkingDirectory=$PSScriptRoot
 $shortcut.IconLocation="$exe,0"
 $shortcut.Description='Lime TUI - Your music. Your terminal.'

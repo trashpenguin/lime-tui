@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Retry the native visualizer reader after a five-second delay when a spectrum request fails, without interrupting playback.
+- Open Explorer launches, the portable launcher and Start Menu shortcuts in a 152-column by 38-row Windows Terminal window; existing shell launches retain their window.
+- Keep the existing console available when Windows Terminal is absent.
+
 ## v1.0.3 — 2026-10-30
 
 - Treat premature decoder/stream endings as failures rather than normal queue completion. Attempt one bounded startup reload, then show an actionable error.

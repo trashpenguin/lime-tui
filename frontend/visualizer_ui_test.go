@@ -951,3 +951,49 @@ func TestFailedNativeVisualizerDoesNotInventMusic(t *testing.T) {
 		t.Fatal("unavailable source is misleadingly labeled")
 	}
 }
+
+func TestNativeVisualizerRetriesFailureWithoutInterruptingPlayback(t *testing.T) {
+	eng := &engine.Engine{}
+	m := model{phase: phaseReady, eng: eng, t: 10, vizOpening: true,
+		st: engine.State{Playing: true}}
+	next, _ := m.Update(visualizerOpenedMsg{err: context.DeadlineExceeded})
+	m = next.(model)
+	if m.retryVisualizer() != nil {
+		t.Fatal("retry ignored backoff")
+	}
+	m.t = 15
+	if m.retryVisualizer() == nil || !m.vizOpening {
+		t.Fatal("failed source never retried")
+	}
+	if m.retryVisualizer() != nil {
+		t.Fatal("duplicate retry scheduled")
+	}
+	if m.eng != eng || !m.st.Playing {
+		t.Fatal("retry interrupted playback")
+	}
+	service, err := visualizer.NewNativeService(func() ([32]float64, error) {
+		return [32]float64{0.5}, nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer service.Close()
+	frame := waitForVisualizerFrame(t, service)
+	next, _ = m.Update(visualizerOpenedMsg{service: service, source: "native playback"})
+	next, _ = next.(model).Update(tickMsg(frame.At))
+	m = next.(model)
+	if m.vizTerminal || !m.vizLive || m.vizTargets[0] != .5 {
+		t.Fatal("successful retry did not restore live spectrum")
+	}
+}
+func TestNativeVisualizerRetryWaitsForReadyEngine(t *testing.T) {
+	for _, m := range []model{
+		{phase: phaseBoot, eng: &engine.Engine{}, vizTerminal: true, t: 30},
+		{phase: phaseReady, vizTerminal: true, t: 30},
+		{phase: phaseReady, eng: &engine.Engine{}, vizTerminal: true, vizOpening: true, t: 30},
+	} {
+		if m.retryVisualizer() != nil {
+			t.Fatal("retry outside active session")
+		}
+	}
+}

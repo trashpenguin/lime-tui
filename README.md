@@ -27,6 +27,8 @@ A Spotify terminal player for Windows, combining Pomme's Go/Bubble Tea interface
 
 ## Start
 
+**Next preview / source builds:** With Windows Terminal installed, double-clicking Lime opens a new 152-column × 38-row window. `Start Lime.cmd`, the Start Menu shortcut, and `Lime.exe --window` use the same size. Font and display scaling determine the pixel dimensions. Running `Lime.exe` from an existing shell keeps that window. Without Windows Terminal, Lime uses the existing console. These changes are not included in the v1.0.3 download.
+
 Extract the Windows ZIP into a folder and run **Lime.exe**, or **Start Lime.cmd**. Keep `lime-engine.exe` beside it. A Spotify **Premium** account and internet connection are required. On first launch the app opens Spotify's pairing page and displays the pairing code in the terminal. Approve the pairing yourself in your browser. No developer client ID is required, and the Spotify desktop app is not required for playback.
 
 Windows 10/11 x64 is the supported target. If Windows reports a missing VCRUNTIME/MSVCP DLL, install Microsoft's Visual C++ x64 Redistributable. This initial preview is unsigned.

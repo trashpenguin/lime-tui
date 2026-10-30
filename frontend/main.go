@@ -184,12 +184,13 @@ type model struct {
 	coverSerial    uint64
 	nextCoverCheck time.Time
 
-	// real spectrum; falls back to fake animation
+	// Native playback spectrum; retries temporary source failures.
 	vizService  *visualizer.Service
 	vizOpening  bool
 	vizLive     bool
 	vizSource   string
 	vizTerminal bool
+	vizRetryAt  float64
 	vizHistory  [48][32]float64
 	vizBands    [32]float64 // smoothed, 0..1
 	vizTargets  [32]float64
@@ -274,6 +275,7 @@ func (m model) visualizerTitle() string {
 }
 
 func (m *model) failVisualizer() {
+	m.vizRetryAt = m.t + 5
 	m.vizService = nil
 	m.vizOpening = false
 	m.vizLive = false
@@ -283,6 +285,16 @@ func (m *model) failVisualizer() {
 		m.note = visualizerUnavailableNote
 		m.noteAt = m.t
 	}
+}
+
+// Retry only the spectrum reader, without interrupting playback.
+func (m *model) retryVisualizer() tea.Cmd {
+	if m.phase != phaseReady || m.eng == nil || !m.vizTerminal ||
+		m.vizService != nil || m.vizOpening || m.t < m.vizRetryAt {
+		return nil
+	}
+	m.vizOpening = true
+	return openNativeVisualizerCmd(m.eng)
 }
 
 func (m *model) closeVisualizerAsync() {
@@ -640,6 +652,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		scrobble := m.advanceScrobble(time.Second / 30)
 		cmds := []tea.Cmd{tick()}
+		if retry := m.retryVisualizer(); retry != nil {
+			cmds = append(cmds, retry)
+		}
 		if m.phase == phaseReady && !m.recentSyncBusy && !now.Before(m.recentNextSync) {
 			cmds = append(cmds, m.syncSpotifyHistory())
 		}
@@ -708,6 +723,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.vizService = msg.service
+		m.vizTerminal = false
 		m.vizOpening = false
 		m.vizLive = true
 		m.vizSource = msg.source
@@ -1931,6 +1947,9 @@ func (m model) View() string {
 var version = "dev"
 
 func main() {
+	if launchDefaultWindow() {
+		return
+	}
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
 		case "--diagnose-system":
