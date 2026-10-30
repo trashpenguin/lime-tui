@@ -192,6 +192,14 @@ func (e *Engine) PlaybackDiagnostics() (PlaybackDiagnostics, error) {
 		report.Events = report.Events[len(report.Events)-64:]
 	}
 	for i := range report.Events {
+		switch report.Events[i].FailureStage {
+		case "metadata", "availability", "format", "download", "audio_key", "decode", "seek", "local_file", "internal":
+		default:
+			report.Events[i].FailureStage = ""
+		}
+		if code := report.Events[i].FailureKind; code != nil && (*code < -1 || *code > 16 || *code == 0 || report.Events[i].FailureStage == "") {
+			report.Events[i].FailureKind = nil
+		}
 		switch report.Events[i].Event {
 		case "playing", "paused", "loading", "stopped", "unavailable", "end_of_track", "track_changed", "progress", "handoff", "session_lost", "local_disconnect", "request_play", "request_pause", "load_sent", "early_end", "retry_start", "stream_failed":
 		default:

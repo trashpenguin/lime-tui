@@ -25,3 +25,5 @@ A release owner must provide a contact address, publish an appropriate privacy p
 ## Optional playback support report
 
 F12 explicitly writes Lime-playback-report.json beside the executable. This adds up to 64 in-memory playback event types, internal numeric request counters, relative elapsed times, positions and connection/error-presence flags to the existing system report. It excludes song/artist/account identifiers, credentials, tokens, profile paths and raw native logs. The rolling trace is not written into the queue/profile and is cleared at process exit or account disconnect. Only pressing F12 exports it; no automatic uploader is added. The report overwrites the previous report of the same name. Delete the JSON file to remove an exported report.
+
+F12 playback events can also contain a fixed load-stage label and a numeric librespot error-kind code. Neither contains the original error message, account data, identifiers, stream URLs or audio keys. Reports still require an explicit F12 export and are never uploaded automatically.

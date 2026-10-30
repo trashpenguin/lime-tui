@@ -13,17 +13,17 @@
     "#1": {
       "0000": {
         "fixed": {
-          "file_version": "1.0.3.0",
-          "product_version": "1.0.3.0",
+          "file_version": "1.0.4.0",
+          "product_version": "1.0.4.0",
           "flags": "Prerelease"
         },
         "info": {
           "0409": {
             "CompanyName": "Lime TUI contributors",
             "FileDescription": "Lime TUI - Spotify terminal player",
-            "FileVersion": "1.0.3",
+            "FileVersion": "1.0.4",
             "ProductName": "Lime TUI",
-            "ProductVersion": "1.0.3",
+            "ProductVersion": "1.0.4",
             "OriginalFilename": "Lime.exe",
             "Comments": "Your music. Your terminal."
           }

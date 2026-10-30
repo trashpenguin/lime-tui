@@ -1,12 +1,12 @@
 <p align="center"><img src="assets/lime.png" alt="Lime TUI logo" width="96"></p>
 
-# Lime TUI v1.0.3
+# Lime TUI v1.0.4
 
 **Your music. Your terminal.**
 
 A Spotify terminal player for Windows, combining Pomme's Go/Bubble Tea interface with a native Rust playback engine adapted from spotatui.
 
-[Download Windows x64](https://github.com/trashpenguin/lime-tui/releases/download/v1.0.3/LimeTUI-1.0.3-windows-x64.zip) · [Release notes](https://github.com/trashpenguin/lime-tui/releases/tag/v1.0.3) · [Changelog](CHANGELOG.md)
+[Download Windows x64](https://github.com/trashpenguin/lime-tui/releases/download/v1.0.4/LimeTUI-1.0.4-windows-x64.zip) · [Release notes](https://github.com/trashpenguin/lime-tui/releases/tag/v1.0.4) · [Changelog](CHANGELOG.md)
 
 **Initial preview:** the binaries are unsigned. Spotify distribution authorization and broader clean-machine/hardware qualification remain unresolved. See [release readiness](RELEASE-READINESS.md) and the [Spotify integration review](SPOTIFY-DISTRIBUTION-REVIEW.md). Publishing this repository does not establish Spotify approval.
 
@@ -27,7 +27,7 @@ A Spotify terminal player for Windows, combining Pomme's Go/Bubble Tea interface
 
 ## Start
 
-**Next preview / source builds:** With Windows Terminal installed, double-clicking Lime opens a new 152-column × 38-row window. `Start Lime.cmd`, the Start Menu shortcut, and `Lime.exe --window` use the same size. Font and display scaling determine the pixel dimensions. Running `Lime.exe` from an existing shell keeps that window. Without Windows Terminal, Lime uses the existing console. These changes are not included in the v1.0.3 download.
+With Windows Terminal installed, double-clicking Lime opens a new 152-column × 38-row window. `Start Lime.cmd`, the Start Menu shortcut, and `Lime.exe --window` use the same size. Font and display scaling determine the pixel dimensions. Running `Lime.exe` from an existing shell keeps that window. Without Windows Terminal, Lime uses the existing console.
 
 Extract the Windows ZIP into a folder and run **Lime.exe**, or **Start Lime.cmd**. Keep `lime-engine.exe` beside it. A Spotify **Premium** account and internet connection are required. On first launch the app opens Spotify's pairing page and displays the pairing code in the terminal. Approve the pairing yourself in your browser. No developer client ID is required, and the Spotify desktop app is not required for playback.
 
@@ -136,4 +136,4 @@ The optional `scripts/PlaybackSoak.py` requires `--allow-audio`, a cached Premiu
 
 ## Credits and license
 
-Lime TUI builds on [Pomme TUI](https://github.com/trashpenguin/pomme-tui), the MIT frontend from [applemusic-tui](https://github.com/k1y0miiii/applemusic-tui), and [spotatui](https://github.com/LargeModGames/spotatui). All upstream notices remain intact. See [NOTICE.md](NOTICE.md), [LICENSE](LICENSE) and the dependency notices. The backend source retains its upstream package/module versions; the Lime application release is v1.0.3.
+Lime TUI builds on [Pomme TUI](https://github.com/trashpenguin/pomme-tui), the MIT frontend from [applemusic-tui](https://github.com/k1y0miiii/applemusic-tui), and [spotatui](https://github.com/LargeModGames/spotatui). All upstream notices remain intact. See [NOTICE.md](NOTICE.md), [LICENSE](LICENSE) and the dependency notices. The backend source retains its upstream package/module versions; the Lime application release is v1.0.4.

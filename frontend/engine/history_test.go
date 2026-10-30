@@ -21,12 +21,15 @@ func TestPlaybackDiagnosticsDropsUnexpectedPrivateFields(t *testing.T) {
 		}
 		_ = json.NewEncoder(server).Encode(map[string]any{"id": request["id"], "result": map[string]any{
 			"username": "private-fixture", "track_id": "private-fixture", "connected": true,
-			"events": []map[string]any{{"event": "private-fixture", "title": "private-fixture"}, {"event": "stopped", "positionMs": 1000}},
+			"events": []map[string]any{{"event": "private-fixture", "title": "private-fixture", "failureStage": "private-fixture", "failureKind": 999}, {"event": "stopped", "positionMs": 1000}, {"event": "unavailable", "failureStage": "audio_key", "failureKind": 14}},
 		}})
 	}()
 	report, err := eng.PlaybackDiagnostics()
 	if err != nil {
 		t.Fatal(err)
+	}
+	if report.Events[2].FailureStage != "audio_key" || report.Events[2].FailureKind == nil || *report.Events[2].FailureKind != 14 {
+		t.Fatal("typed failure category was dropped")
 	}
 	data, err := json.Marshal(report)
 	if err != nil {

@@ -30,6 +30,8 @@ type PlaybackTraceEvent struct {
 	Request        *uint64 `json:"request"`
 	MatchesCurrent *bool   `json:"matchesCurrent"`
 	PositionMs     uint64  `json:"positionMs"`
+	FailureStage   string  `json:"failureStage,omitempty"`
+	FailureKind    *int    `json:"failureKind,omitempty"`
 }
 type PlaybackDiagnostics struct {
 	Playing    bool                 `json:"playing"`

@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased
+## v1.0.4 — 2026-10-30
+
+- Preserve bounded track-load failure stages (metadata, availability, format, download, audio key, decode or seek) and numeric error categories in F12 reports; show a specific error in the player. Raw logs, tokens, track IDs and account data remain excluded.
+- Display PLAYBACK ERROR in the visualizer heading when audio playback has failed. A connected spectrum reader no longer implies successful playback.
+- This diagnostics preview does not establish or fix the cause of the reported failure on another Premium account. That PC must reproduce the problem and export a new F12 report.
 
 - Retry the native visualizer reader after a five-second delay when a spectrum request fails, without interrupting playback.
 - Open Explorer launches, the portable launcher and Start Menu shortcuts in a 152-column by 38-row Windows Terminal window; existing shell launches retain their window.

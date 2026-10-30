@@ -262,6 +262,9 @@ type model struct {
 }
 
 func (m model) visualizerTitle() string {
+	if m.st.Err != "" {
+		return "VISUALIZER · PLAYBACK ERROR"
+	}
 	if m.vizLive {
 		return "VISUALIZER · LIVE · " + m.vizSource
 	}

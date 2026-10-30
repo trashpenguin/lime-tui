@@ -20,3 +20,5 @@ Library interaction changes in v1.0.1: clickable action controls, in-context loa
 History changes in v1.0.2: bounded account Web API reads, independent background refresh, explicit source labels, local fallback, server cooldown and session-generation cleanup.
 
 Playback changes in v1.0.3: retained decoder request identities in the streaming adapter; bounded premature-start recovery in the Lime bridge; explicit failures, pause/handoff handling, and redacted opt-in support reports.
+
+v1.0.4 modifies the vendored playback loader to retain typed failure categories through the one-shot completion channel and Unavailable event. It adds categorized diagnostics and player messages, visualizer recovery and default Windows window sizing.

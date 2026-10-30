@@ -997,3 +997,10 @@ func TestNativeVisualizerRetryWaitsForReadyEngine(t *testing.T) {
 		}
 	}
 }
+
+func TestVisualizerDoesNotClaimLiveAfterPlaybackFailure(t *testing.T) {
+	m := model{vizLive: true, vizSource: "native playback", st: engine.State{Err: "track load failed"}}
+	if got := m.visualizerTitle(); got != "VISUALIZER · PLAYBACK ERROR" {
+		t.Fatal(got)
+	}
+}

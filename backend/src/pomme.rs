@@ -3,16 +3,16 @@
 //! its bounded queue and does not start spotatui's terminal, artwork, or plugins.
 use crate::infra::player::{PlayerEvent, StreamingConfig, StreamingPlayer};
 use crate::infra::spotify::{self, credentials, session};
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::{
   io::Write,
   sync::Arc,
   time::{Duration, Instant},
 };
-use tokio::sync::{mpsc, Mutex, Semaphore};
+use tokio::sync::{Mutex, Semaphore, mpsc};
 
 const MAX_QUEUE: usize = 1000;
 const MAX_LINE: usize = 64 * 1024;
@@ -39,12 +39,49 @@ fn classify_track_end(
   }
 }
 
+fn load_failure_message(stage: librespot_playback::player::LoadStage) -> &'static str {
+  use librespot_playback::player::LoadStage;
+  match stage {
+    LoadStage::Metadata => {
+      "Spotify track metadata request failed. Press R to reconnect, then try again."
+    }
+    LoadStage::Availability => {
+      "Spotify marked this track unavailable for this account. Try another track."
+    }
+    LoadStage::Format => {
+      "Spotify returned no supported audio format for this track. Try another track."
+    }
+    LoadStage::Download => {
+      "Spotify audio download failed. Check the connection, then press R to reconnect."
+    }
+    LoadStage::AudioKey => {
+      "Spotify audio-key request failed. Press R to reconnect; if it persists, save an F12 report."
+    }
+    LoadStage::Decode => "The Spotify audio stream could not be decoded. Save an F12 report.",
+    LoadStage::Seek => {
+      "The Spotify stream could not start at the requested position. Try the track again."
+    }
+    LoadStage::LocalFile => "The local audio file could not be opened or decoded.",
+    LoadStage::Internal => "The Spotify track loader stopped unexpectedly. Press R to reconnect.",
+  }
+}
+
 #[derive(Default)]
 struct PlaybackTrace {
   started: Option<Instant>,
   entries: std::collections::VecDeque<Value>,
 }
 impl PlaybackTrace {
+  fn annotate_load_failure(&mut self, failure: librespot_playback::player::LoadFailure) {
+    if let Some(entry) = self
+      .entries
+      .back_mut()
+      .filter(|entry| entry["event"] == "unavailable")
+    {
+      entry["failureStage"] = json!(failure.stage.code());
+      entry["failureKind"] = json!(failure.kind.map(|kind| kind as i32));
+    }
+  }
   fn push(
     &mut self,
     event: &'static str,
@@ -442,13 +479,13 @@ impl Backend {
         PlayerEvent::Unavailable {
           track_id,
           play_request_id,
+          failure,
         } => {
+          q.trace.annotate_load_failure(failure);
           if q.owns_event(&track_id.to_string(), play_request_id) {
             q.freeze();
             q.loading = false;
-            q.error =
-              "Spotify could not play this track. Try another track or press R to reconnect."
-                .into();
+            q.error = load_failure_message(failure.stage).into();
           }
         }
         PlayerEvent::Stopped {
@@ -567,7 +604,7 @@ impl Backend {
   async fn handle(self: &Arc<Self>, method: &str, p: &Value) -> Result<Value> {
     match method {
       "hello" => {
-        return Ok(json!({"protocol":1, "authed":credentials::streaming_credentials_are_cached()?}))
+        return Ok(json!({"protocol":1, "authed":credentials::streaming_credentials_are_cached()?}));
       }
       "state" => return Ok(self.state().await),
       "playback_diagnostics" => {
@@ -685,7 +722,7 @@ impl Backend {
       "library_page" => {
         return self
           .library(text(p, "category"), number(p, "offset") as usize)
-          .await
+          .await;
       }
       "artist_page" => {
         let tracks = self.resolve("artists", text(p, "id")).await?;
@@ -694,7 +731,7 @@ impl Backend {
       "discovery_item" => {
         return Ok(serde_json::to_value(
           self.resolve(text(p, "kind"), text(p, "id")).await?,
-        )?)
+        )?);
       }
       "discovery" => {
         let page = get("views/made-for-x", &[]).await?;
@@ -1053,7 +1090,7 @@ impl Backend {
     if matches!(kind, "songs" | "song" | "track" | "") {
       let value = get(&format!("tracks/{id}"), &[]).await?;
       return Ok(vec![
-        map_track(&value, "songs").context("Spotify returned no track")?
+        map_track(&value, "songs").context("Spotify returned no track")?,
       ]);
     }
     let (path, key) = match kind {
@@ -1378,6 +1415,38 @@ pub async fn run() -> Result<()> {
 mod tests {
   use super::*;
   #[test]
+  fn track_load_failures_preserve_only_typed_categories_and_do_not_persist() {
+    use librespot_playback::player::{LoadFailure, LoadStage};
+    let mut q = Queue::default();
+    for stage in [
+      LoadStage::Metadata,
+      LoadStage::Availability,
+      LoadStage::Format,
+      LoadStage::Download,
+      LoadStage::AudioKey,
+      LoadStage::Decode,
+      LoadStage::Seek,
+      LoadStage::LocalFile,
+      LoadStage::Internal,
+    ] {
+      q.trace.push("unavailable", Some(4), Some(true), 0);
+      q.trace.annotate_load_failure(LoadFailure {
+        stage,
+        kind: Some(librespot_core::error::ErrorKind::PermissionDenied),
+      });
+      let event = q.trace.entries.back().unwrap();
+      assert_eq!(event["failureStage"], stage.code());
+      assert_eq!(event["failureKind"], 7);
+      assert!(!load_failure_message(stage).is_empty());
+    }
+    let exported = serde_json::to_string(&q.trace.entries).unwrap();
+    assert!(exported.contains("audio_key"));
+    let stored = serde_json::to_string(&q).unwrap();
+    assert!(!stored.contains("failureStage"));
+    assert!(!stored.contains("PermissionDenied"));
+  }
+
+  #[test]
   fn playback_trace_is_bounded_and_never_persisted_with_the_queue() {
     let mut q = Queue::default();
     for i in 0..200 {
@@ -1604,7 +1673,9 @@ mod tests {
     if let Some(player) = backend.player.lock().await.take() {
       player.shutdown();
     }
-    println!("Verified one retry, no queue skip, stale-end rejection, explicit resume and pause cancellation");
+    println!(
+      "Verified one retry, no queue skip, stale-end rejection, explicit resume and pause cancellation"
+    );
   }
   #[test]
   fn playlist_item_envelope_maps_to_a_playable_song() {

@@ -1,4 +1,6 @@
-# Lime TUI 1.0.3 release readiness
+# Lime TUI 1.0.4 release readiness
+
+v1.0.4 adds typed load-failure diagnostics and corrects the visualizer status after playback errors. It includes visualizer recovery and the sized Windows launcher. The friend’s Premium-account failure has not been reproduced locally; the existing v1.0.3 report loses the underlying load stage. This is a diagnostic preview, not a confirmed repair of that external failure. Historical validation follows.
 
 v1.0.3 hardens premature stream-end handling and adds F12 support reports. A stream fault is no longer silently treated as a normal song completion. Controlled real-player failure injection passed; spontaneous intermittent stops were not reproduced in the sampled seven-second starts. General fresh-machine/hardware qualification remains incomplete. See VALIDATION.md.
 

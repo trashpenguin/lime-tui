@@ -1,4 +1,8 @@
-# Lime TUI 1.0.3 validation — 2026-10-30
+# Lime TUI 1.0.4 validation — 2026-10-30
+
+v1.0.4 adds typed load-failure diagnostics and corrects the visualizer status after playback errors. It includes visualizer recovery and the sized Windows launcher. The friend’s Premium-account failure has not been reproduced locally; the existing v1.0.3 report loses the underlying load stage. This is a diagnostic preview, not a confirmed repair of that external failure. Validation for this update: 1,491 Rust library tests passed (11 opt-in tests ignored), all Go packages and vet passed, strict native Clippy passed, govulncheck found no vulnerabilities and the native audit found no unassessed advisories. The optimized package passed 28 offline protocol requests and live Premium playback with 60 changing spectrum frames, pause silence and seek/resume. A deliberately nonexistent track exercised the real loader and exported metadata / error-kind 9 with a specific UI error. That negative test is not a reproduction of the external account failure. Defender reported zero matching detections.
+
+Historical validation follows.
 
 The playback update passed 1,490 Rust library tests (11 ignored), the Go suite/vet, and strict Clippy. Tests cover premature-end classification, bounded recovery, stale request ownership, pause cancellation, trace bounds/non-persistence, report allowlisting and support notifications that leave audio state intact. A real Premium session passed 20 track starts observed for seven seconds each before the fix and 20 after it. The intermittent spontaneous stop was not reproduced. A separate real-player fault-injection test verified one fresh load without advancing the queue, visible failure on a second premature end, stale-end rejection, explicit retry and pause cancellation. Historical qualification and the separate Spotify-history HTTP 429 limitation remain below.
 
