@@ -140,6 +140,10 @@ struct Queue {
   #[serde(skip)]
   request_id: Option<u64>,
   #[serde(skip)]
+  observed_request: Option<u64>,
+  #[serde(skip)]
+  connect_queue: bool,
+  #[serde(skip)]
   generation: u64,
   #[serde(skip)]
   retry_used: bool,
@@ -150,6 +154,49 @@ struct Queue {
 }
 
 impl Queue {
+  // Decoder request IDs increase for both local loads and Spotify Connect loads.
+  // A newer request from Connect is authoritative; older buffered events are not.
+  fn observe_connect_track(&mut self, uri: &str, request: u64) -> bool {
+    let Some(id) = uri.strip_prefix("spotify:track:") else {
+      return false;
+    };
+    if id.len() != 22 || !id.bytes().all(|b| b.is_ascii_alphanumeric()) {
+      return false;
+    }
+    if let Some(active) = self.request_id {
+      if request < active {
+        return false;
+      }
+      if request == active {
+        return self.current_uri().as_deref() == Some(uri);
+      }
+    }
+    self.freeze();
+    self.generation = self.generation.wrapping_add(1);
+    self.retry_used = false;
+    self.error.clear();
+    self.position = 0;
+    self.request_id = Some(request);
+    self.connect_queue = true;
+    self.play_intent = true;
+    self.index = if let Some(index) = self.tracks.iter().position(|t| t.id == id) {
+      index
+    } else {
+      // Keep the existing queue bounded, including repeated phone selections.
+      if self.tracks.len() == MAX_QUEUE {
+        self.tracks.remove(0);
+      }
+      self.tracks.push(Track {
+        id: id.into(),
+        title: "Loading Spotify track…".into(),
+        kind: "song".into(),
+        ..Track::default()
+      });
+      self.tracks.len() - 1
+    };
+    true
+  }
+
   fn position_ms(&self) -> u64 {
     let elapsed = if self.playing {
       self
@@ -356,12 +403,27 @@ impl Backend {
           .push(name, event.get_play_request_id(), current, position);
       }
       match event {
+        PlayerEvent::PlayRequestIdChanged { play_request_id } => {
+          q.observed_request = Some(play_request_id);
+        }
+        PlayerEvent::Loading {
+          track_id,
+          play_request_id,
+          position_ms,
+        } => {
+          if q.observe_connect_track(&track_id.to_string(), play_request_id) {
+            q.position = position_ms as u64;
+            q.clock = None;
+            q.playing = false;
+            q.loading = true;
+          }
+        }
         PlayerEvent::Playing {
           track_id,
           position_ms,
           play_request_id,
         } => {
-          if q.owns_event(&track_id.to_string(), play_request_id)
+          if q.observe_connect_track(&track_id.to_string(), play_request_id)
             && !q.retry_pending
             && (q.play_intent || q.error.is_empty())
           {
@@ -375,7 +437,7 @@ impl Backend {
           position_ms,
           play_request_id,
         } => {
-          if q.owns_event(&track_id.to_string(), play_request_id) {
+          if q.observe_connect_track(&track_id.to_string(), play_request_id) {
             q.retry_pending = false;
             q.play_intent = false;
             q.reset_clock(position_ms as u64, false);
@@ -397,9 +459,29 @@ impl Backend {
           }
         }
         PlayerEvent::TrackChanged { audio_item } => {
-          if q.current_uri().as_deref() == Some(audio_item.track_id.to_string().as_str()) {
+          let uri = audio_item.track_id.to_string();
+          if q
+            .observed_request
+            .is_some_and(|request| q.observe_connect_track(&uri, request))
+          {
             let index = q.index;
             if let Some(track) = q.tracks.get_mut(index) {
+              use librespot_metadata::audio::item::UniqueFields;
+              if let UniqueFields::Track { artists, album, .. } = &audio_item.unique_fields {
+                track.artist = artists
+                  .0
+                  .iter()
+                  .map(|a| a.name.as_str())
+                  .collect::<Vec<_>>()
+                  .join(", ");
+                track.album = album.clone();
+              }
+              track.title = audio_item.name.clone();
+              track.art = audio_item
+                .covers
+                .first()
+                .map(|c| c.url.clone())
+                .unwrap_or_default();
               track.dur_ms = audio_item.duration_ms as u64;
             }
           }
@@ -472,6 +554,10 @@ impl Backend {
             TrackEnd::Complete => {}
           }
           q.freeze();
+          if q.connect_queue {
+            // Spirc owns the phone's context and advances it itself.
+            continue;
+          }
           drop(q);
           let _guard = self.commands.lock().await;
           let q = self.queue.lock().await;
@@ -578,6 +664,10 @@ impl Backend {
     q.retry_used = retry;
     q.generation = q.generation.wrapping_add(1);
     q.request_id = None;
+    q.observed_request = None;
+    if !retry {
+      q.connect_queue = false;
+    }
     q.error.clear();
     let uri = q.current_uri().unwrap();
     player.activate();
@@ -1466,6 +1556,53 @@ pub async fn run() -> Result<()> {
 #[cfg(test)]
 mod tests {
   use super::*;
+  #[test]
+  fn phone_track_changes_update_the_queue_and_reject_old_decoder_events() {
+    let mut q = Queue {
+      tracks: vec![track(1), track(2)],
+      request_id: Some(7),
+      retry_pending: true,
+      retry_used: true,
+      error: "old failure".into(),
+      generation: 3,
+      ..Queue::default()
+    };
+    let first = q.current_uri().unwrap();
+    let second = format!("spotify:track:{}", q.tracks[1].id);
+    assert!(!q.observe_connect_track(&second, 6));
+    assert!(!q.observe_connect_track(&second, 7));
+    assert!(q.observe_connect_track(&second, 8));
+    assert_eq!(q.index, 1);
+    assert_eq!(q.tracks.len(), 2);
+    assert_eq!(q.generation, 4);
+    assert!(q.connect_queue && q.play_intent);
+    assert!(!q.retry_pending && !q.retry_used);
+    assert!(q.error.is_empty());
+    assert!(!q.owns_event(&first, 7));
+    assert!(!q.observe_connect_track(&first, 7));
+    assert!(q.owns_event(&second, 8));
+    // Repeating the same track from the phone is a new decoder request too.
+    assert!(q.observe_connect_track(&second, 9));
+    assert!(!q.owns_event(&second, 8));
+  }
+
+  #[test]
+  fn phone_selection_outside_the_queue_is_bounded_and_local_loads_stay_local() {
+    let mut q = Queue {
+      tracks: (0..MAX_QUEUE).map(track).collect(),
+      request_id: Some(10),
+      ..Queue::default()
+    };
+    let current = q.current_uri().unwrap();
+    assert!(q.observe_connect_track(&current, 10));
+    assert!(!q.connect_queue);
+    let remote = format!("spotify:track:{:022}", MAX_QUEUE + 1);
+    assert!(q.observe_connect_track(&remote, 11));
+    assert_eq!(q.tracks.len(), MAX_QUEUE);
+    assert_eq!(q.current_uri().as_deref(), Some(remote.as_str()));
+    assert!(!q.observe_connect_track("spotify:episode:invalid", 12));
+    assert_eq!(q.request_id, Some(11));
+  }
   #[test]
   fn track_load_failures_preserve_only_typed_categories_and_do_not_persist() {
     use librespot_playback::player::{LoadFailure, LoadStage};

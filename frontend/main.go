@@ -831,7 +831,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.libraryActionStatus = "Playing: " + m.st.Now.Title
 				m.libraryPlayRequested = false
 			}
-			if id := m.st.Now.ID; id != "" && id != m.lyFor {
+			if id := m.st.Now.ID; !m.st.Initializing && id != "" && id != m.lyFor {
 				m.lyFor, m.lyBusy, m.ly = id, true, lyrics.Lyrics{}
 				m.lyricOffset = 0
 				cmd = fetchLyricsCmd(m.eng, id, m.st.Now.Artist, m.st.Now.Title, m.st.Now.Duration)

@@ -1,5 +1,6 @@
 {
-  "review_date": "2026-10-30",
+  "review_date": "2026-10-31",
+  "review_note": "Native Connect synchronization changes only decoder-event ownership, bounded queue selection and track metadata. No dependencies, credential handling or RSA operations changed.",
   "target": "x86_64-pc-windows-msvc",
   "features": [
     "pomme-bridge"
@@ -36,7 +37,7 @@
         "vendor/spotatui-librespot-playback/Cargo.toml": "a91dbe0cb891632422f6a00edfb0312b8bf446b5d08add41de030ebff42c0ce1"
       },
       "source_tree_sha256": {
-        "src": "c7d8d89debb4d8d75f2a1247eb2399d6cd7d2ae0c651f37fb57fe7aed434d949",
+        "src": "d25458e59272c123de8dc353a28cc3d6203b16e0292f99327961a3b391062e0c",
         "vendor/spotatui-librespot-core/src": "5180e840530e5c29e708f6de96fdedd2e6b8301ad53ce00aa26383e069f4de94",
         "vendor/spotatui-librespot-playback/src": "f44f4b93a0aba789b687bf6c5acb3d9d95a19d64a7a0716d862a853e474f0c85"
       }
