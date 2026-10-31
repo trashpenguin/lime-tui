@@ -1,4 +1,6 @@
-# Lime TUI 1.0.5 release readiness
+# Lime TUI 1.0.6 release readiness
+
+v1.0.6 adds three native-audio visualizer styles and follows confirmed phone-controlled track changes when Lime plays the audio. No dependencies or credential paths change. Automated checks cover bounded rendering, real-data response, saved selection, queue ownership and stale events. Manual phone-driven verification remains pending. This remains an unsigned preview; Spotify distribution approval and broader hardware qualification remain unresolved. Soloist still has no audio tap. Historical results below apply only to their stated versions.
 
 v1.0.5 adds an official, user-installed Soloist playback adapter, without distributing Spotify binaries or private keys. Official Windows Soloist 1.3.10.30 started through Lime and reported that initial pairing was required; the child stopped on shutdown. The affected account’s actual playback has not been verified here. Controlled tests cover event confirmation, stale-owner rejection, pause/handoff behavior, natural-end queue advancement, redacted errors, encrypted settings and sign-out erasure. The visualizer has no Soloist PCM tap. Historical results below remain limited to their original versions.
 

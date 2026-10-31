@@ -30,12 +30,12 @@ func TestVisualizerTitleReflectsCaptureState(t *testing.T) {
 		{
 			name: "live CoreAudio",
 			m:    model{vizLive: true, vizSource: "COREAUDIO"},
-			want: "VISUALIZER · LIVE · COREAUDIO",
+			want: "VISUALIZER · LIVE · BARS · COREAUDIO",
 		},
 		{
 			name: "live PipeWire",
 			m:    model{vizLive: true, vizSource: "PIPEWIRE"},
-			want: "VISUALIZER · LIVE · PIPEWIRE",
+			want: "VISUALIZER · LIVE · BARS · PIPEWIRE",
 		},
 		{
 			name: "simulated",
@@ -275,7 +275,7 @@ func TestVisualizerOpenedMarksSilentCaptureLiveImmediately(t *testing.T) {
 	if !got.vizLive || got.vizSource != "COREAUDIO" {
 		t.Fatalf("silent capture live=%v source=%q", got.vizLive, got.vizSource)
 	}
-	if title := got.visualizerTitle(); title != "VISUALIZER · LIVE · COREAUDIO" {
+	if title := got.visualizerTitle(); title != "VISUALIZER · LIVE · BARS · COREAUDIO" {
 		t.Fatalf("visualizerTitle() = %q", title)
 	}
 	if _, ok := service.Latest(); ok {

@@ -33,6 +33,9 @@ const (
 	vizWave
 	vizMirror
 	vizWaterfall
+	vizRing
+	vizDots
+	vizRibbon
 	vizModes
 )
 
@@ -334,7 +337,7 @@ func vizModeFile() string {
 	return filepath.Join(d, "vizmode")
 }
 
-var vizModeNames = [vizModes]string{"bars", "torus", "sphere", "wave", "mirror", "waterfall"}
+var vizModeNames = [vizModes]string{"bars", "torus", "sphere", "wave", "mirror", "waterfall", "ring", "dots", "ribbon"}
 
 func loadVizMode() int {
 	p := vizModeFile()

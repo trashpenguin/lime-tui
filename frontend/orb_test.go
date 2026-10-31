@@ -207,8 +207,8 @@ func TestVizModesCycleThroughEveryShape(t *testing.T) {
 		}
 		seen[name] = true
 	}
-	if len(seen) != 6 {
-		t.Fatalf("got %d modes, want six distinct visualizers", len(seen))
+	if len(seen) != 9 {
+		t.Fatalf("got %d modes, want nine distinct visualizers", len(seen))
 	}
 }
 
@@ -222,6 +222,16 @@ func TestVizModeUpgradesTheOldOrbName(t *testing.T) {
 	}
 	if got := loadVizMode(); got != vizTorus {
 		t.Fatalf("old \"orb\" file loaded as mode %d, want torus", got)
+	}
+}
+
+func TestNewVisualizerModesPersist(t *testing.T) {
+	t.Setenv("AMTUI_CONFIG_DIR", t.TempDir())
+	for _, mode := range []int{vizRing, vizDots, vizRibbon} {
+		saveVizMode(mode)
+		if got := loadVizMode(); got != mode {
+			t.Fatalf("saved %s, restored %s", vizModeName(mode), vizModeName(got))
+		}
 	}
 }
 

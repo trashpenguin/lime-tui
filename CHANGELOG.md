@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.0.6 — 2026-10-31
+
+- Add ring, dots and ribbon visualizers, bringing the total to nine. Press v to cycle styles; retain the selection across launches and show the live style in the panel title.
+- Use the existing native spectrum and bounded history, with no new dependencies or audio capture. Soloist still has no audio tap.
+- Follow native Spotify Connect song changes made on a phone while Lime is the playback device, including tracks outside Lime's local queue. Update metadata, artwork, lyrics and progress while rejecting stale decoder events.
+- Let Spotify advance contexts selected from a phone and wait for track metadata before scheduling lyrics.
+- Add regression coverage for rendering bounds, audio response, frequency response, silence, history direction, persisted styles and phone-controlled queue ownership.
+- Remain an unsigned preview. Phone-driven playback requires manual verification on the user's device; broader hardware qualification and Spotify distribution authorization remain unresolved.
+
 ## v1.0.5 — 2026-10-30
 
 - Add official Spotify Soloist playback for accounts where native librespot audio-key requests fail. Soloist is user-installed from Spotify and requires the user’s own key and initial device pairing.

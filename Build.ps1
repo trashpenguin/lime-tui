@@ -18,5 +18,6 @@ foreach ($file in @('VERSION','LICENSE','CHANGELOG.md','README.md','NOTICE.md','
     if (Test-Path -LiteralPath (Join-Path $root $file)) { Copy-Item -LiteralPath (Join-Path $root $file) -Destination $release }
 }
 Copy-Item -LiteralPath (Join-Path $root 'assets') -Destination $release -Recurse -Force
+Copy-Item -LiteralPath (Join-Path $root 'CONNECT-FIX.md') -Destination $release
 Get-ChildItem -LiteralPath $release -Filter '*.exe' | ForEach-Object { '{0}  {1}' -f (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant(), $_.Name } | Set-Content -LiteralPath (Join-Path $release 'SHA256SUMS.txt') -Encoding ascii
 Write-Host "Portable app: $release"

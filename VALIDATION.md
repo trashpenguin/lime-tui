@@ -1,4 +1,6 @@
-# Lime TUI 1.0.5 validation — 2026-10-30
+# Lime TUI 1.0.6 validation — 2026-10-31
+
+v1.0.6 passed all Go tests and vet, 1,498 Rust library tests (11 opt-in tests ignored), strict native Clippy and govulncheck with no vulnerabilities. The 356-package native audit found no unassessed advisories. Visualizer tests cover all new styles, rendering bounds, silence, frequency response, ribbon history direction, non-finite input and persisted selection. Connect regression tests cover local/remote decoder ownership, same-song reselection, stale events, bounded queue insertion and waiting for metadata before lyrics. The backend source and optimized binary are unchanged from the preceding Connect fix. Manual phone-controlled playback and visual appearance on additional PCs remain unverified. Historical checks below apply only to their stated versions.
 
 Final v1.0.5 checks: 1,496 Rust library tests passed (11 opt-in tests ignored), all Go tests and vet passed, strict native Clippy passed, govulncheck found no vulnerabilities, and the native audit found no unassessed advisories. The optimized package passed 28 offline protocol requests. Native Premium playback produced 60 changing spectrum frames and passed pause silence and seek/resume checks. The packaged backend started official Windows Soloist 1.3.10.30 and reported pairing required; hard termination of the backend also terminated its Soloist child. Defender reported zero matching detections. Actual playback on the affected account remains dependent on that user's initial Soloist pairing and verification.
 

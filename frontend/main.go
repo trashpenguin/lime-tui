@@ -195,7 +195,7 @@ type model struct {
 	vizBands    [32]float64 // smoothed, 0..1
 	vizTargets  [32]float64
 	vizPeaks    [32]float64 // peak-hold markers, decay slowly
-	vizMode     int         // vizBars or vizOrb, persisted across runs
+	vizMode     int         // selected visualizer style, persisted across runs
 	orbSpin     float64     // torus rotation, accelerated by the beat
 	orbWobble   float64     // torus tilt oscillation
 	orbKick     float64     // 0..1 beat strength, spikes on a bass hit
@@ -269,7 +269,7 @@ func (m model) visualizerTitle() string {
 		return "VISUALIZER · PLAYBACK ERROR"
 	}
 	if m.vizLive {
-		return "VISUALIZER · LIVE · " + m.vizSource
+		return "VISUALIZER · LIVE · " + strings.ToUpper(vizModeName(m.vizMode)) + " · " + m.vizSource
 	}
 	if m.vizOpening {
 		return "VISUALIZER · STARTING"
@@ -1582,7 +1582,7 @@ func simulatedBands(t float64, playing bool) [32]float64 {
 
 func (m model) vizPanel(w, h int) string {
 	switch m.vizMode {
-	case vizWave, vizMirror, vizWaterfall:
+	case vizWave, vizMirror, vizWaterfall, vizRing, vizDots, vizRibbon:
 		return spectrumPanel(w, h-1, m.vizMode, m.vizBands, m.vizHistory)
 	case vizTorus:
 		return orbPanel(w, h-1, m.orbSpin, m.orbWobble, m.vizBands)

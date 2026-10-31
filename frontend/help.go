@@ -117,7 +117,7 @@ var helpSections = []helpSection{
 		{"l", "full lyrics"},
 		{"[ / ]", "lyrics ±0.5s"},
 		{"\\", "reset lyric time"},
-		{"v", "visualizer"},
+		{"v", "cycle 9 styles"},
 		{"m", "mini player"},
 		{"T", "sleep timer"},
 		{"t", "cycle theme"},

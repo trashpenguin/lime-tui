@@ -1,4 +1,4 @@
-# Spotify Connect synchronization — local preview, 2026-10-31
+# Spotify Connect synchronization — v1.0.6 preview, 2026-10-31
 
 When Spotify on a phone controls Lime as its selected playback device, Lime now
 follows the native player's confirmed track changes. It updates the active queue
@@ -21,4 +21,4 @@ local load ownership and waiting for metadata before fetching lyrics.
 Manual verification remains: select Lime in the phone's Spotify device picker,
 change to a different song and check title, cover, lyrics and progress. Try a song
 outside the previous Lime queue, then let it finish to check Spotify's next song.
-This local preview has not been published as a new GitHub release.
+Included in the v1.0.6 preview release.
