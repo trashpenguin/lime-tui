@@ -2,6 +2,13 @@
 
 ## v1.0.6 — 2026-10-31
 
+## v1.0.7 — 2026-11-09
+
+- Add a per-user Windows x64 installer with Start menu shortcuts and an uninstaller that keeps the user profile.
+- Download the Microsoft Visual C++ x64 Runtime if needed and verify its publisher before launching it.
+- Offer to download and verify Spotify Soloist for accounts affected by native audio-key errors. Users supply their own Spotify Premium account and Soloist key and pair once.
+- Offer the installed Soloist path in Lime's existing setup prompt. The portable package remains available.
+
 - Add ring, dots and ribbon visualizers, bringing the total to nine. Press v to cycle styles; retain the selection across launches and show the live style in the panel title.
 - Use the existing native spectrum and bounded history, with no new dependencies or audio capture. Soloist still has no audio tap.
 - Follow native Spotify Connect song changes made on a phone while Lime is the playback device, including tracks outside Lime's local queue. Update metadata, artwork, lyrics and progress while rejecting stale decoder events.

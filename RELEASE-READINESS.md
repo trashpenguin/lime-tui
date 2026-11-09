@@ -1,4 +1,6 @@
-# Lime TUI 1.0.6 release readiness
+# Lime TUI 1.0.7 release readiness
+
+v1.0.7 adds the Windows x64 setup wizard, with an optional direct download of Spotify Soloist. Spotify's executable is fetched from Spotify by the user's installer and checked for a valid Spotify signature. This is an unsigned preview. First-time runtime installation on a clean machine, playback on the affected account and Spotify distribution authorization remain open.
 
 v1.0.6 adds three native-audio visualizer styles and follows confirmed phone-controlled track changes when Lime plays the audio. No dependencies or credential paths change. Automated checks cover bounded rendering, real-data response, saved selection, queue ownership and stale events. Manual phone-driven verification remains pending. This remains an unsigned preview; Spotify distribution approval and broader hardware qualification remain unresolved. Soloist still has no audio tap. Historical results below apply only to their stated versions.
 
