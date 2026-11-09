@@ -45,17 +45,33 @@ func runSoloistSetup() error {
 	setupSpotifyProfile()
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Println("Lime: official Spotify Soloist setup")
-	fmt.Println("Download and extract the Windows x64 build from:")
-	fmt.Println("https://developer.spotify.com/documentation/soloist/reference/downloads-and-updates")
+	managedPath := ""
+	if exe, err := os.Executable(); err == nil {
+		candidate := filepath.Join(filepath.Dir(exe), "Spotify Soloist", "soloist.exe")
+		if info, err := os.Stat(candidate); err == nil && info.Mode().IsRegular() {
+			managedPath = candidate
+		}
+	}
+	if managedPath == "" {
+		fmt.Println("Download and extract the Windows x64 build from:")
+		fmt.Println("https://developer.spotify.com/documentation/soloist/reference/downloads-and-updates")
+	}
 	fmt.Println("Get your own API key: https://developer.spotify.com/dashboard/soloist")
 	fmt.Println("The key is stored using Windows encryption. Soloist requires it on its command line while running.")
 	fmt.Println("Soloist builds expire after 90 days; replace the executable with a current official build when needed.")
-	fmt.Print("Full path to soloist.exe (or type native to switch back): ")
+	if managedPath != "" {
+		fmt.Print("Press Enter to use the installed Soloist, enter another full path, or type native: ")
+	} else {
+		fmt.Print("Full path to soloist.exe (or type native to switch back): ")
+	}
 	line, err := reader.ReadString('\n')
 	if err != nil {
 		return errors.New("Setup cancelled before a path was entered")
 	}
 	path := strings.Trim(strings.TrimSpace(line), "\"")
+	if path == "" {
+		path = managedPath
+	}
 	if strings.EqualFold(path, "native") {
 		for _, name := range []string{soloistConfigPath(), soloistConfigPath() + ".dpapi"} {
 			if err := os.Remove(name); err != nil && !os.IsNotExist(err) {

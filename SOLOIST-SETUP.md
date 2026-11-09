@@ -2,6 +2,10 @@
 
 Use this mode when Lime signs in but tracks fail with `audio_key` / error 14.
 
+If you run Lime's Windows installer, choose **Install and configure Spotify Soloist**. Setup downloads it directly from Spotify and checks its publisher. Use the dashboard link in setup to generate your own key. In Lime's prompt, press **Enter** to use the installed copy and enter your key. Then follow steps 4 and 5 below.
+
+For a portable install, follow all five steps.
+
 1. Download and extract the Windows x64 build from [Spotify](https://developer.spotify.com/documentation/soloist/reference/downloads-and-updates). Keep the extracted folder in place. Lime does not redistribute Soloist.
 2. Generate your own key at [Spotify for Developers](https://developer.spotify.com/dashboard/soloist). Each user needs their own key. Keep it private.
 3. Run **Setup Soloist.cmd** beside Lime.exe, or press **F8** on the player screen. Enter the full path to `soloist.exe`, then paste the key into the hidden prompt. Windows encrypts the local settings for the current user.
@@ -13,7 +17,7 @@ The key is excluded from support reports and logs. Spotify requires it on the So
 ## Preview limitations
 
 - Soloist audio has no PCM tap in Lime. The visualizer shows **SOLOIST · NO AUDIO TAP** without simulated bars.
-- Soloist builds expire after 90 days. Replace the executable from Spotify, then rerun setup if its path changed.
+- Soloist builds expire after 90 days. Rerun Lime's Windows installer with Soloist selected to refresh the installed copy. For portable installs, replace the executable from Spotify and rerun configuration if its path changed.
 - Startup and pairing state were tested with the official Windows build. Controlled tests cover queue and transport events. Playback on the affected account still requires its owner to pair and verify it.
 - Device handoff cancels Lime's playback intent. Select a queue track explicitly to take control again.
 

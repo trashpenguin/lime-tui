@@ -27,15 +27,19 @@ A Spotify terminal player for Windows, combining Pomme's Go/Bubble Tea interface
 
 ## Official playback for audio-key failures
 
-If pairing works but songs fail with `audio_key` / error 14, use the new official Soloist playback option. Run **Setup Soloist.cmd** or press **F8** on the player, then follow [Soloist setup](SOLOIST-SETUP.md). Each user downloads Spotify’s executable and generates their own key; neither is bundled with Lime. Windows encrypts the local key settings. Pair **Lime Soloist** once in the Spotify app’s device menu. This mode keeps Lime’s catalog, queue and transport interface but has no visualizer audio tap in this preview. Native playback remains the default.
+If pairing works but songs fail with `audio_key` / error 14, choose Spotify Soloist in the Windows installer. For portable installs, run **Setup Soloist.cmd** or press **F8** on the player. Each user generates their own key. See [Soloist setup](SOLOIST-SETUP.md). Windows encrypts the local key settings. Pair **Lime Soloist** once in the Spotify app’s device menu. This mode keeps Lime’s catalog, queue and transport interface but has no visualizer audio tap in this preview. Native playback remains the default.
 
 ## Start
+
+When you have the Windows setup executable, run it and open **Lime TUI** from Start. Setup installs the app and its playback engine for your Windows user. If the Microsoft Visual C++ x64 Runtime is missing, setup downloads and verifies Microsoft's installer. Windows may ask for administrator permission for that component. You can uninstall Lime from Windows Settings. Your Spotify profile is stored separately.
+
+Choose **Install and configure Spotify Soloist** in setup if you hit an audio-key error. Setup downloads Soloist directly from Spotify and verifies its signature. Generate your own key using the dashboard link in setup. At Lime's configuration prompt, press **Enter** to use the installed copy, then paste your key into the hidden prompt. Then open Lime and pair **Lime Soloist** from the Spotify app on the same network. The **Configure Spotify Soloist** shortcut also works after installation.
 
 With Windows Terminal installed, double-clicking Lime opens a new 152-column × 38-row window. `Start Lime.cmd`, the Start Menu shortcut, and `Lime.exe --window` use the same size. Font and display scaling determine the pixel dimensions. Running `Lime.exe` from an existing shell keeps that window. Without Windows Terminal, Lime uses the existing console.
 
 Extract the Windows ZIP into a folder and run **Lime.exe**, or **Start Lime.cmd**. Keep `lime-engine.exe` beside it. A Spotify **Premium** account and internet connection are required. On first launch the app opens Spotify's pairing page and displays the pairing code in the terminal. Approve the pairing yourself in your browser. No developer client ID is required, and the Spotify desktop app is not required for playback.
 
-Windows 10/11 x64 is the supported target. If Windows reports a missing VCRUNTIME/MSVCP DLL, install Microsoft's Visual C++ x64 Redistributable. This initial preview is unsigned.
+Windows 10/11 x64 is the supported target. If the portable build reports a missing VCRUNTIME/MSVCP DLL, install [Microsoft's Visual C++ x64 Redistributable](https://aka.ms/vc14/vc_redist.x64.exe). This initial preview is unsigned.
 
 `Lime.exe --preview` prints a static sample interface without login, network requests or playback. `--help` shows the controls; `--version` shows the version.
 
@@ -137,6 +141,14 @@ Environment overrides: `LIME_ENGINE` selects a backend executable; `LIME_COLOR=a
 The original Lime icon is provided as SVG, PNG and a multi-resolution ICO under `assets/`. Windows Terminal retains its own application/taskbar identity; Explorer and shortcuts to Lime.exe use the embedded Lime icon.
 
 Optional Start Menu shortcut: right-click `Create Lime Shortcut.ps1` and choose Run with PowerShell after extraction, or run `powershell -NoProfile -ExecutionPolicy Bypass -File ".\Create Lime Shortcut.ps1"` from the extracted folder. It creates a shortcut with the embedded Lime icon and requires no administrator access. Keep the extracted folder in place; deleting the shortcut removes the Start Menu entry.
+
+To also build the installer, pass the path to the Inno Setup 7 x64 compiler with the build's Windows toolchain available.
+
+```powershell
+.\Build.ps1 -SetupCompiler 'C:\path\to\ISCC.exe'
+```
+
+For an existing portable build in `dist/`, run `.\scripts\Build-Setup.ps1 -Iscc 'C:\path\to\ISCC.exe'`. The setup executable is written to `dist/`.
 
 ## Security and release checks
 

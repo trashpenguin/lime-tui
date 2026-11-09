@@ -1,4 +1,4 @@
-param([string]$GoExecutable = 'go', [string]$Version)
+param([string]$GoExecutable = 'go', [string]$Version, [string]$SetupCompiler)
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
 if (!$Version) {$Version=(Get-Content -LiteralPath (Join-Path $root 'VERSION') -Raw).Trim()}
@@ -21,3 +21,6 @@ Copy-Item -LiteralPath (Join-Path $root 'assets') -Destination $release -Recurse
 Copy-Item -LiteralPath (Join-Path $root 'CONNECT-FIX.md') -Destination $release
 Get-ChildItem -LiteralPath $release -Filter '*.exe' | ForEach-Object { '{0}  {1}' -f (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant(), $_.Name } | Set-Content -LiteralPath (Join-Path $release 'SHA256SUMS.txt') -Encoding ascii
 Write-Host "Portable app: $release"
+if ($SetupCompiler) {
+    & (Join-Path $root 'scripts/Build-Setup.ps1') -Iscc $SetupCompiler -Version $Version -ReleaseDirectory $release
+}
