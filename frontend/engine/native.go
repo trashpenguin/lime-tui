@@ -152,7 +152,7 @@ func methodTimeout(method string) time.Duration {
 		return 60 * time.Second
 	case "save_playlist":
 		return 310 * time.Second
-	case "recent_history", "search", "library", "library_page", "artist_page", "queue_next", "queue_later", "save_item", "discovery", "discovery_item":
+	case "recent_history", "search", "library", "library_page", "artist_page", "song_album", "song_artists", "queue_next", "queue_later", "save_item", "discovery", "discovery_item":
 		return 35 * time.Second
 	default:
 		return 5 * time.Second
@@ -160,21 +160,21 @@ func methodTimeout(method string) time.Duration {
 }
 func (e *Engine) State() (State, error) {
 	var raw struct {
-		Authed, Playing, Initializing bool
-		PosMs, DurMs                  uint64
-		Volume                        int
-		Shuffle                       bool
-		Repeat                        int
-		Now                           *wireTrack
-		Queue                         []wireTrack
-		QueuePos                      int
-		PlaybackEngine                string
-		Err                           string
+		Authed, Playing, Initializing, Recovering bool
+		PosMs, DurMs                              uint64
+		Volume                                    int
+		Shuffle                                   bool
+		Repeat                                    int
+		Now                                       *wireTrack
+		Queue                                     []wireTrack
+		QueuePos                                  int
+		PlaybackEngine                            string
+		Err                                       string
 	}
 	if err := e.call("state", nil, &raw); err != nil {
 		return State{}, err
 	}
-	state := State{Authed: raw.Authed, Playing: raw.Playing, Initializing: raw.Initializing, Pos: time.Duration(raw.PosMs) * time.Millisecond, Dur: time.Duration(raw.DurMs) * time.Millisecond,
+	state := State{Authed: raw.Authed, Playing: raw.Playing, Initializing: raw.Initializing, Recovering: raw.Recovering, Pos: time.Duration(raw.PosMs) * time.Millisecond, Dur: time.Duration(raw.DurMs) * time.Millisecond,
 		Volume: raw.Volume, Shuffle: raw.Shuffle, Repeat: raw.Repeat, Queue: tracks(raw.Queue), QueuePos: raw.QueuePos, Err: raw.Err, PlaybackEngine: raw.PlaybackEngine}
 	if raw.Now != nil {
 		state.Now = raw.Now.track()
@@ -287,6 +287,14 @@ func (e *Engine) LibraryPage(category string, offset int) (SearchResults, error)
 }
 func (e *Engine) ArtistPage(id string) (SearchResults, error) {
 	return e.results("artist_page", map[string]any{"id": id})
+}
+
+func (e *Engine) SongAlbum(id string) (SearchResults, error) {
+	return e.results("song_album", map[string]any{"id": id})
+}
+
+func (e *Engine) SongArtists(id string) (SearchResults, error) {
+	return e.results("song_artists", map[string]any{"id": id})
 }
 
 func (e *Engine) Discovery() (Discovery, error) {

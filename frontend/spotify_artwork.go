@@ -133,7 +133,7 @@ func (m model) requestVisibleArtwork() (model, tea.Cmd) {
 	if command != nil {
 		commands = append(commands, command)
 	}
-	if m.libraryOpen || m.searchOpen {
+	if m.libraryOpen && !m.artistBrowser.open {
 		list := m.curList()
 		if !m.sBusy && m.sSel >= 0 && m.sSel < len(list) {
 			m, command = m.requestCover(list[m.sSel])

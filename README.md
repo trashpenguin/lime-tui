@@ -1,12 +1,12 @@
 <p align="center"><img src="assets/lime.png" alt="Lime TUI logo" width="96"></p>
 
-# Lime TUI v1.0.7
+# Lime TUI v1.0.8
 
 **Your music. Your terminal.**
 
 A Spotify terminal player for Windows, combining Pomme's Go/Bubble Tea interface with a native Rust playback engine adapted from spotatui.
 
-[Download Windows setup](https://github.com/trashpenguin/lime-tui/releases/download/v1.0.7/LimeTUI-1.0.7-setup-x64.exe) · [Portable Windows ZIP](https://github.com/trashpenguin/lime-tui/releases/download/v1.0.7/LimeTUI-1.0.7-windows-x64.zip) · [Release notes](https://github.com/trashpenguin/lime-tui/releases/tag/v1.0.7) · [Changelog](CHANGELOG.md)
+[Download Windows setup](https://github.com/trashpenguin/lime-tui/releases/download/v1.0.8/LimeTUI-1.0.8-setup-x64.exe) · [Portable Windows ZIP](https://github.com/trashpenguin/lime-tui/releases/download/v1.0.8/LimeTUI-1.0.8-windows-x64.zip) · [Release notes](https://github.com/trashpenguin/lime-tui/releases/tag/v1.0.8) · [Changelog](CHANGELOG.md)
 
 **Initial preview:** the binaries are unsigned. Spotify distribution authorization and broader clean-machine/hardware qualification remain unresolved. See [release readiness](RELEASE-READINESS.md) and the [Spotify integration review](SPOTIFY-DISTRIBUTION-REVIEW.md). Publishing this repository does not establish Spotify approval.
 
@@ -27,7 +27,7 @@ A Spotify terminal player for Windows, combining Pomme's Go/Bubble Tea interface
 
 ## Official playback for audio-key failures
 
-If pairing works but songs fail with `audio_key` / error 14, choose Spotify Soloist in the Windows installer. For portable installs, run **Setup Soloist.cmd** or press **F8** on the player. Each user generates their own key. See [Soloist setup](SOLOIST-SETUP.md). Windows encrypts the local key settings. Pair **Lime Soloist** once in the Spotify app’s device menu. This mode keeps Lime’s catalog, queue and transport interface but has no visualizer audio tap in this preview. Native playback remains the default.
+If pairing works but songs fail with `audio_key` / error 14, choose Spotify Soloist in the Windows installer. For portable installs, run **Setup Soloist.cmd** or press **F8** on the player. Each user generates their own key. See [Soloist setup](SOLOIST-SETUP.md). Windows encrypts the local key settings. Pair **Lime Soloist** once in the Spotify app’s device menu. This mode keeps Lime’s catalog, queue and transport interface. Native playback remains the default.
 
 ## Start
 
@@ -43,25 +43,31 @@ Windows 10/11 x64 is the supported target. If the portable build reports a missi
 
 `Lime.exe --preview` prints a static sample interface without login, network requests or playback. `--help` shows the controls; `--version` shows the version.
 
+## What's new in v1.0.8
+
+Search shows results by category with artwork previews. Open artists to browse top songs and albums. Library albums and playlists have artwork cards. Press **Enter** to open a collection and **e** to play it in full. Stats lets you play ranked tracks or browse ranked artists and albums. Windows Terminal uses a Lime profile fragment for the tab icon.
+
 ## Controls
 
 | Key | Action |
 | --- | --- |
 | `/`, then Enter | Search songs, albums, playlists and artists |
-| Enter | Play/open the selected item |
+| Enter | Play a song or open the selected artist, album, or playlist |
+| `e` on an album or playlist | Play the whole collection |
+| Tab in Stats | Switch between ranked tracks, artists, and albums |
 | Space | Play/pause |
 | `n` / `p` | Next/previous; previous restarts after the first 3 seconds |
 | `a` / `A` while browsing | Append to queue / insert after current track |
 | `F8` | Set up official Soloist playback or switch back to native |
 | `F12` | Save a playback support report beside Lime.exe |
 | `H` on the player screen | Refresh Spotify history (honors server cooldowns) |
-| `L` | Library; Tab cycles songs, albums, playlists, artists and liked songs |
+| `L` | Open the selected Library category. Press Esc to choose another. |
 | `r` in the library | Reload the current page / retry a failed library load |
 | Left/right in the player | Seek 5 seconds |
 | Up/down in the player | Volume |
-| `s` / `r` | Shuffle upcoming queue / repeat off → queue → track |
+| `s` / `r` or `R` | Shuffle upcoming queue / repeat off → queue → track |
 | Delete / Ctrl+Up / Ctrl+Down | Remove/reorder queue selection |
-| Ctrl+Delete | Clear queue |
+| Ctrl+X | Clear the focused queue |
 | `S` twice | Save the queue as a private Spotify playlist |
 | `t` / `v` | Theme / live visualizer mode |
 | `c` | Reload album covers |
@@ -69,18 +75,18 @@ Windows 10/11 x64 is the supported target. If the portable build reports a missi
 | `[` / `]` / backslash | Lyric timing −0.5s / +0.5s / reset |
 | `m` / `T` | Mini player / sleep timer |
 | `a` outside search | Account and sign-out menu |
-| `R` | Reconnect the audio engine, leaving the track paused |
-| `?` | Full context-sensitive help |
+| `F5` | Reconnect the audio engine, leaving the track paused |
+| `F1` / `?` | Context-sensitive help. In the search field, ? types a question mark. |
 | `q` / Ctrl+C | Quit |
 
 Press `v` to cycle bars, torus, sphere, wave, mirror, waterfall, ring, dots and
 ribbon. Lime remembers the selected style; the live panel title shows its name.
-All nine styles are included in v1.0.7. Soloist still has no audio tap.
+All nine styles support native playback. Soloist visualization uses only Soloist's output and requires Windows build 20348 or newer.
 
 When the phone's Spotify app selects Lime as the playback device, native playback
 follows confirmed song changes, including songs outside Lime's current queue.
 
-Windows media keys use the system media session when Windows makes this player active. A handoff to another Spotify device can interrupt local playback; press R to reconnect if needed. The queue is managed by this app; editing it from another Spotify Connect client is not synchronized.
+Windows media keys use the system media session when Windows makes this player active. A handoff to another Spotify device can interrupt local playback; press F5 to reconnect if needed. The queue is managed by this app; editing it from another Spotify Connect client is not synchronized.
 
 Enabling shuffle rearranges the upcoming queue once; the visible queue shows the actual playback order. Turning shuffle off keeps that order. With repeat off, playback stops at the end of the queue.
 
@@ -93,7 +99,7 @@ load fails.
 
 ## Playback recovery and support
 
-A stream that ends unexpectedly during startup gets one fresh load of the same track. A repeated or later premature ending shows an error instead of silently being treated as a finished song. Normal queue endings still follow repeat settings. Pause, track changes and device handoffs cancel pending recovery; recovery does not reclaim another device’s playback. Space explicitly retries after a playback error, and R reconnects.
+A stream that ends unexpectedly during startup gets one fresh load of the same track. A repeated or later premature ending shows an error instead of silently being treated as a finished song. Normal queue endings still follow repeat settings. Pause, track changes and device handoffs cancel pending recovery; recovery does not reclaim another device’s playback. Space explicitly retries after a playback error, and F5 reconnects.
 
 If a song still stops, press **F12** soon afterward. Lime writes **Lime-playback-report.json beside Lime.exe**. It contains build/system information and the last 64 playback event types, request counters, positions and connection flags. It excludes account names, song/artist identifiers, credentials, tokens, profile paths and raw logs. No report is uploaded automatically. Attach this file to a bug report so the failure can be investigated even if you forgot the song. The portable folder must be writable.
 
@@ -160,4 +166,4 @@ The optional `scripts/PlaybackSoak.py` requires `--allow-audio`, a cached Premiu
 
 ## Credits and license
 
-Lime TUI builds on [Pomme TUI](https://github.com/trashpenguin/pomme-tui), the MIT frontend from [applemusic-tui](https://github.com/k1y0miiii/applemusic-tui), and [spotatui](https://github.com/LargeModGames/spotatui). All upstream notices remain intact. See [NOTICE.md](NOTICE.md), [LICENSE](LICENSE) and the dependency notices. The backend source retains its upstream package/module versions; the Lime application release is v1.0.7.
+Lime TUI builds on [Pomme TUI](https://github.com/trashpenguin/pomme-tui), the MIT frontend from [applemusic-tui](https://github.com/k1y0miiii/applemusic-tui), and [spotatui](https://github.com/LargeModGames/spotatui). All upstream notices remain intact. See [NOTICE.md](NOTICE.md), [LICENSE](LICENSE) and the dependency notices. The backend source retains its upstream package/module versions; the Lime application release is v1.0.8.

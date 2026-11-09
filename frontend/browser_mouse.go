@@ -36,9 +36,6 @@ func (m model) updateBrowserMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		switch {
 		case m.libraryOpen:
 			return m.updateLibraryView(key)
-		case m.searchOpen:
-			m.sInput = false
-			return m.updateSearch(key)
 		case m.discoveryOpen:
 			return m.updateDiscovery(key)
 		case m.queueOpen:
@@ -52,8 +49,6 @@ func (m model) updateBrowserMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	switch {
 	case m.libraryOpen:
 		view = m.libraryView()
-	case m.searchOpen:
-		view = m.searchView()
 	case m.discoveryOpen:
 		view = m.discoveryView()
 	case m.queueOpen:
@@ -107,43 +102,6 @@ func (m model) updateBrowserMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		}
 		m.sSel = index
 		return m.updateLibraryView(enter)
-	case m.searchOpen:
-		if msg.Y == box.y+1 {
-			m.sInput = true
-			return m, nil
-		}
-		if msg.Y == box.y+2 {
-			lines := strings.Split(view, "\n")
-			line := ansi.Strip(lines[msg.Y])
-			for i, name := range tabNames {
-				if at := strings.Index(line, name); at >= 0 {
-					x := lipgloss.Width(line[:at])
-					if msg.X >= x-1 && msg.X < x+len(name)+1 {
-						m.sTab = i
-						m.sSel = 0
-						m.sInput = false
-						return m, nil
-					}
-				}
-			}
-			return m, nil
-		}
-		if m.sBusy {
-			return m, nil
-		}
-		row := msg.Y - box.y - 4
-		rows := m.searchRows()
-		start := max(0, m.sSel-rows+1)
-		index := start + row
-		if msg.X >= box.x+1+m.browserCoverColumn(box.width-2, rows) {
-			index = m.sSel
-		}
-		if row < 0 || row >= rows || index >= len(m.curList()) {
-			return m, nil
-		}
-		m.sSel = index
-		m.sInput = false
-		return m.updateSearch(enter)
 	case m.queueOpen:
 		rows := max(5, min(20, m.h-13))
 		row := msg.Y - box.y - 2

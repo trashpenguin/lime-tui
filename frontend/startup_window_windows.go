@@ -33,7 +33,12 @@ func launchDefaultWindow() bool {
 	if err != nil {
 		return false // The existing console still works without Windows Terminal.
 	}
-	cmd := exec.Command(terminal, "-w", "new", "--size", "152,38", "-d", filepath.Dir(exe), exe, "--terminal-window")
+	args := []string{"-w", "new", "--size", "152,38", "new-tab", "--title", "Lime", "-d", filepath.Dir(exe)}
+	if ensureLimeTerminalProfile(os.Getenv("LOCALAPPDATA"), exe) == nil {
+		args = append(args, "--profile", limeTerminalProfileID)
+	}
+	args = append(args, "--", exe, "--terminal-window")
+	cmd := exec.Command(terminal, args...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{CreationFlags: windows.CREATE_NO_WINDOW}
 	return cmd.Run() == nil
 }

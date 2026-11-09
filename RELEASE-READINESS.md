@@ -1,4 +1,6 @@
-# Lime TUI 1.0.7 release readiness
+# Lime TUI 1.0.8 release readiness
+
+v1.0.8 adds the Spotify browsing and stats updates, contextual controls, mini player and Windows Terminal profile, live Soloist visualization, and Soloist queue rollover handling. Live Spotify checks on the test PC covered catalog results, the visualizer, advancing to Lime's next queued track, and stopping after the last track. Windows Terminal fragment generation was tested. The tab icon on screen and first-time setup on a clean Windows machine remain open. The package is an unsigned prerelease and Spotify distribution authorization remains unresolved. The dependency audit flags an informational maintenance advisory for the existing pin-utils dependency.
 
 v1.0.7 adds the Windows x64 setup wizard, with an optional direct download of Spotify Soloist. Spotify's executable is fetched from Spotify by the user's installer and checked for a valid Spotify signature. This is an unsigned preview. First-time runtime installation on a clean machine, playback on the affected account and Spotify distribution authorization remain open.
 

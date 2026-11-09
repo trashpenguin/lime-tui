@@ -284,6 +284,7 @@ func TestEnterOnLibraryCategoryOpensAlbumList(t *testing.T) {
 	m := recentModel()
 	m.focus = focusLibrary
 	m.librarySelection = 2
+	m.eng = &engine.Engine{}
 
 	next, cmd := m.updateKeys(tea.KeyMsg{Type: tea.KeyEnter})
 	got := next.(model)

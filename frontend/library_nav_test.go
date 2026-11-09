@@ -12,6 +12,7 @@ import (
 
 func TestLibraryPanelArrowKeysMoveAndClampSelection(t *testing.T) {
 	m := mouseModel(100, 34, 5)
+	m.eng = &engine.Engine{}
 	m.recent = []engine.Track{{Title: "recent"}}
 	m.focus = focusLibrary
 
@@ -49,6 +50,7 @@ func TestEnterOpensSelectedLibraryCategory(t *testing.T) {
 		{selection: 5, category: 4}, // Favorites.
 	} {
 		m := mouseModel(100, 34, 5)
+		m.eng = &engine.Engine{}
 		m.focus, m.librarySelection, m.libraryOffset = focusLibrary, tc.selection, 50
 		updated, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
 		got := updated.(model)
@@ -84,6 +86,7 @@ func TestEnterLibraryDiscoveryAndStatsOpenDedicatedPages(t *testing.T) {
 
 func TestUppercaseLOpensSelectedDedicatedLibraryPage(t *testing.T) {
 	m := mouseModel(100, 34, 5)
+	m.eng = &engine.Engine{}
 	m.focus, m.librarySelection = focusLibrary, 3 // Playlists.
 	updated, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'L'}})
 	got := updated.(model)
@@ -94,7 +97,8 @@ func TestUppercaseLOpensSelectedDedicatedLibraryPage(t *testing.T) {
 
 func TestUppercaseLOpensDedicatedPageFromSearchResults(t *testing.T) {
 	m := mouseModel(100, 34, 5)
-	m.searchOpen, m.sInput, m.libraryCategory = true, false, 2 // Playlists.
+	m.eng = &engine.Engine{}
+	m.searchOpen, m.sInput, m.sTab = true, false, 3 // Playlists.
 	updated, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'L'}})
 	got := updated.(model)
 	if cmd == nil || !got.libraryOpen || got.searchOpen || got.libraryCategory != 2 {
@@ -122,6 +126,7 @@ func TestCtrlLDoesNothingInSearchOrLibrary(t *testing.T) {
 
 func TestClickLibraryItemSelectsAndOpensIt(t *testing.T) {
 	m := mouseModel(100, 34, 5)
+	m.eng = &engine.Engine{}
 	m.recent = []engine.Track{{Title: "recent"}}
 	lay := m.layout()
 

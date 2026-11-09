@@ -38,6 +38,16 @@ func TestVisualizerTitleReflectsCaptureState(t *testing.T) {
 			want: "VISUALIZER · LIVE · BARS · PIPEWIRE",
 		},
 		{
+			name: "live Soloist",
+			m:    model{st: engine.State{PlaybackEngine: "soloist"}, vizLive: true},
+			want: "VISUALIZER · LIVE · BARS · SOLOIST",
+		},
+		{
+			name: "unavailable Soloist",
+			m:    model{st: engine.State{PlaybackEngine: "soloist"}, vizTerminal: true},
+			want: "VISUALIZER · SOLOIST · UNAVAILABLE",
+		},
+		{
 			name: "simulated",
 			m:    model{},
 			want: "VISUALIZER · SIMULATED",

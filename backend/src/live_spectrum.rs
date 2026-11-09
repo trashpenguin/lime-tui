@@ -1,5 +1,11 @@
 //! A small stereo FFT over audio actually consumed by Lime's output mixer.
-//! No microphone/system capture, audio files, or unbounded sample queue.
+//! Native output and the owned Soloist process use separate bounded rings.
+
+#[cfg(windows)]
+#[path = "soloist_spectrum.rs"]
+mod soloist;
+#[cfg(windows)]
+pub use soloist::SoloistCapture;
 use realfft::{num_complex::Complex, RealFftPlanner, RealToComplex};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
@@ -119,9 +125,12 @@ pub fn bands(active: bool) -> [f64; 32] {
   if !active {
     return [0.0; 32];
   }
-  let spectrum = spectrum();
+  analyze_ring(&spectrum().ring)
+}
+
+fn analyze_ring(ring: &Mutex<Ring>) -> [f64; 32] {
   let snapshot = {
-    let Ok(ring) = spectrum.ring.try_lock() else {
+    let Ok(ring) = ring.try_lock() else {
       return [0.0; 32];
     };
     if ring.count < N || ring.updated.is_none_or(|time| time.elapsed() > STALE) {
@@ -129,7 +138,7 @@ pub fn bands(active: bool) -> [f64; 32] {
     }
     (ring.samples, ring.cursor)
   };
-  spectrum
+  spectrum()
     .analyzer
     .lock()
     .unwrap_or_else(|e| e.into_inner())

@@ -46,7 +46,7 @@ fn load_failure_message(stage: librespot_playback::player::LoadStage) -> &'stati
   use librespot_playback::player::LoadStage;
   match stage {
     LoadStage::Metadata => {
-      "Spotify track metadata request failed. Press R to reconnect, then try again."
+      "Spotify track metadata request failed. Press F5 to reconnect, then try again."
     }
     LoadStage::Availability => {
       "Spotify marked this track unavailable for this account. Try another track."
@@ -55,17 +55,17 @@ fn load_failure_message(stage: librespot_playback::player::LoadStage) -> &'stati
       "Spotify returned no supported audio format for this track. Try another track."
     }
     LoadStage::Download => {
-      "Spotify audio download failed. Check the connection, then press R to reconnect."
+      "Spotify audio download failed. Check the connection, then press F5 to reconnect."
     }
     LoadStage::AudioKey => {
-      "Spotify audio-key request failed. Press R to reconnect; if it persists, save an F12 report."
+      "Spotify audio-key request failed. Press F5 to reconnect; if it persists, save an F12 report."
     }
     LoadStage::Decode => "The Spotify audio stream could not be decoded. Save an F12 report.",
     LoadStage::Seek => {
       "The Spotify stream could not start at the requested position. Try the track again."
     }
     LoadStage::LocalFile => "The local audio file could not be opened or decoded.",
-    LoadStage::Internal => "The Spotify track loader stopped unexpectedly. Press R to reconnect.",
+    LoadStage::Internal => "The Spotify track loader stopped unexpectedly. Press F5 to reconnect.",
   }
 }
 
@@ -592,7 +592,7 @@ impl Backend {
           q.freeze();
           q.loading = false;
           if unexpected && q.error.is_empty() {
-            q.error="Spotify stopped playback unexpectedly. Select the track again or press R to reconnect.".into();
+            q.error="Spotify stopped playback unexpectedly. Select the track again or press F5 to reconnect.".into();
           }
         }
         PlayerEvent::SessionDisconnected {
@@ -600,7 +600,7 @@ impl Backend {
           ..
         } => {
           q.freeze();
-          q.error="Spotify playback moved to another device. Press R to reconnect if you want to play here.".into();
+          q.error="Spotify playback moved to another device. Press F5 to reconnect if you want to play here.".into();
         }
         _ => {}
       }
@@ -697,11 +697,11 @@ impl Backend {
       } else if !player.is_connected() && !recovering {
         q.freeze();
         q.loading = false;
-        q.error = "Spotify connection ended. Press R to reconnect, then Space to resume.".into();
+        q.error = "Spotify connection ended. Press F5 to reconnect, then Space to resume.".into();
       }
     }
     json!({"authed": credentials::streaming_credentials_are_cached().unwrap_or(false),
-            "playing": q.playing, "initializing": q.loading || recovering, "playbackEngine": if official.is_some() {"soloist"} else {"native"}, "posMs": q.position_ms(),
+            "playing": q.playing, "initializing": q.loading || recovering, "recovering": recovering, "playbackEngine": if official.is_some() {"soloist"} else {"native"}, "posMs": q.position_ms(),
             "durMs": q.tracks.get(q.index).map(|t| t.dur_ms).unwrap_or(0),
             "volume": q.volume, "shuffle": q.shuffle, "repeat": q.repeat,
             "now": q.tracks.get(q.index), "queue": q.tracks, "queuePos": q.index, "err": q.error})
@@ -734,8 +734,8 @@ impl Backend {
         );
       }
       "spectrum" => {
-        if self.soloist.lock().await.is_some() {
-          bail!("Soloist audio analysis is not available");
+        if let Some(player) = self.soloist.lock().await.as_ref() {
+          return Ok(serde_json::to_value(player.spectrum()?)?);
         }
         let q = self.queue.lock().await;
         let active = q.playing && !q.loading;
@@ -841,8 +841,29 @@ impl Backend {
           .await;
       }
       "artist_page" => {
-        let tracks = self.resolve("artists", text(p, "id")).await?;
-        return Ok(json!({"songs":tracks}));
+        let id = text(p, "id");
+        validate_id(id)?;
+        let path = format!("artists/{id}/albums");
+        let query = [("include_groups", "album,single".into()), ("limit", "20".into())];
+        let (tracks, albums) = tokio::try_join!(self.resolve("artists", id), get(&path, &query))?;
+        return Ok(json!({"songs": tracks, "albums": map_items(&albums, "albums")}));
+      }
+      "song_album" | "song_artists" => {
+        let id = text(p, "id");
+        validate_id(id)?;
+        let track = get(&format!("tracks/{id}"), &[]).await?;
+        if method == "song_album" {
+          return Ok(json!({"albums": map_track(&track["album"], "albums").into_iter().collect::<Vec<_>>() }));
+        }
+        let artists = track["artists"].as_array().into_iter().flatten()
+          .take(8).filter_map(|artist| map_track(artist, "artists"));
+        let artists = futures::future::join_all(artists.map(|artist| async move {
+          match get(&format!("artists/{}", artist.id), &[]).await {
+            Ok(profile) => map_track(&profile, "artists").unwrap_or(artist),
+            Err(_) => artist,
+          }
+        })).await;
+        return Ok(json!({"artists": artists}));
       }
       "discovery_item" => {
         return Ok(serde_json::to_value(
@@ -1531,7 +1552,7 @@ pub async fn run() -> Result<()> {
             let reply=match result{
                 Ok(Ok(value))=>json!({"id":request.id,"result":value}),
                 Ok(Err(error))=>json!({"id":request.id,"error":error.to_string()}),
-                Err(_)=>json!({"id":request.id,"error":"Spotify operation timed out; retry or press R to reconnect"}),
+                Err(_)=>json!({"id":request.id,"error":"Spotify operation timed out; retry or press F5 to reconnect"}),
             };
             let _=tx.send(reply).await;
         });

@@ -9,16 +9,16 @@ type Track struct {
 	Art                      string
 }
 type State struct {
-	PlaybackEngine                string
-	Authed, Playing, Initializing bool
-	Pos, Dur                      time.Duration
-	Volume                        int
-	Shuffle                       bool
-	Repeat                        int
-	Now                           Track
-	Queue                         []Track
-	QueuePos                      int
-	Err                           string
+	PlaybackEngine                            string
+	Authed, Playing, Initializing, Recovering bool
+	Pos, Dur                                  time.Duration
+	Volume                                    int
+	Shuffle                                   bool
+	Repeat                                    int
+	Now                                       Track
+	Queue                                     []Track
+	QueuePos                                  int
+	Err                                       string
 }
 type SearchResults struct{ Songs, Albums, Playlists, Recent, Artists []Track }
 type HistoryPage struct {

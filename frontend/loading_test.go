@@ -125,6 +125,7 @@ func TestNewPlayAttemptRestartsInitializationTimer(t *testing.T) {
 		initStart:  10,
 		initFailed: true,
 		sTab:       1,
+		eng:        &engine.Engine{},
 		sRes: engine.SearchResults{
 			Songs: []engine.Track{{ID: "song-1", Kind: "song", Title: "Song"}},
 		},
@@ -156,7 +157,7 @@ func TestReloadRestartsInitializationTimer(t *testing.T) {
 		initFailed: true,
 	}
 
-	next, cmd := m.updateKeys(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("R")})
+	next, cmd := m.updateKeys(tea.KeyMsg{Type: tea.KeyF5})
 	got := next.(model)
 	if cmd == nil {
 		t.Fatal("reload should remain available after an initialization failure")
@@ -228,6 +229,7 @@ func startPlayAttempt(t *testing.T, st engine.State) model {
 	m := model{
 		phase: phaseReady,
 		st:    st,
+		eng:   &engine.Engine{},
 		sTab:  1,
 		sRes: engine.SearchResults{
 			Songs: []engine.Track{{ID: "new", Kind: "song", Title: "New Song"}},
@@ -321,7 +323,7 @@ func TestReloadClearsLocalInitializationState(t *testing.T) {
 		},
 	}
 
-	next, cmd := m.updateKeys(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("R")})
+	next, cmd := m.updateKeys(tea.KeyMsg{Type: tea.KeyF5})
 	if cmd == nil {
 		t.Fatal("reload should return a command")
 	}

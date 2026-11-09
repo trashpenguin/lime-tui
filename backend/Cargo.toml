@@ -144,6 +144,7 @@ arboard = { version = "3.4", features = ["wayland-data-control"] }
 librespot-playback = { version = "=0.8.6", package = "spotatui-librespot-playback", optional = true, default-features = false, features = ["rodio-backend"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
+wasapi = { version = "0.27", optional = true }
 windows-sys = { version = "0.61", features = ["Win32_Globalization", "Win32_Foundation", "Win32_Security", "Win32_System_JobObjects"] }
 arboard = "3.4"
 # On Windows we default to rodio for audio output.
@@ -172,7 +173,7 @@ objc2 = { version = "0.6", optional = true }
 block2 = { version = "0.6", optional = true }
 
 [features]
-pomme-bridge = ["streaming", "windows-media", "realfft", "librespot-playback/pcm-observer"]
+pomme-bridge = ["streaming", "windows-media", "realfft", "librespot-playback/pcm-observer", "dep:wasapi"]
 default = ["telemetry", "streaming", "audio-viz-cpal", "macos-media", "discord-rpc", "mpris", "self-update", "windows-media", "scripting", "tui"]
 telemetry = []
 # The terminal frontend: gates `mod tui` and owns the terminal-only crates.

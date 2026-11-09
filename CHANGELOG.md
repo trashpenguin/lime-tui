@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.0.8 — 2026-11-09
+
+- Add Spotify catalog search previews and artwork cards for Library artists, albums, and playlists. Open artist songs and albums, or browse a collection before playing it with e.
+- Make listening stats interactive. Play ranked tracks and browse ranked artists and albums.
+- Add contextual help on F1, reserve r/R for repeat, move engine reload to F5, and clear the focused queue with Ctrl+X.
+- Refresh the mini player and add a Lime Windows Terminal profile with a tab icon.
+- Add a live Soloist visualizer on Windows build 20348 or newer using process-scoped audio capture.
+- Keep Soloist playback on the Lime queue when Spotify attempts to start a different song at track end. With repeat off, stop at the last queued track.
+
 ## v1.0.6 — 2026-10-31
 
 ## v1.0.7 — 2026-11-09

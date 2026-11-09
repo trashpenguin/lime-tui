@@ -110,7 +110,7 @@ func runSoloistSetup() error {
 	}
 	loadSoloistSettings()
 	fmt.Println("Saved. Start Lime, open Spotify on a phone or computer on the same network, and select Lime Soloist in its device menu once.")
-	fmt.Println("Lime's library, queue, lyrics and transport controls will use Soloist. Its visualizer has no audio tap in this preview.")
+	fmt.Println("Lime's library, queue, lyrics and transport controls will use Soloist. Live visualization requires Windows process audio capture.")
 	return nil
 }
 

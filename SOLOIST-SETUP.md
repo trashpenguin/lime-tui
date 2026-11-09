@@ -16,7 +16,7 @@ The key is excluded from support reports and logs. Spotify requires it on the So
 
 ## Preview limitations
 
-- Soloist audio has no PCM tap in Lime. The visualizer shows **SOLOIST · NO AUDIO TAP** without simulated bars.
+- Lime v1.0.8 uses Windows process audio capture for Soloist on build 20348 or newer. If capture is unavailable, Lime shows **SOLOIST · UNAVAILABLE**.
 - Soloist builds expire after 90 days. Rerun Lime's Windows installer with Soloist selected to refresh the installed copy. For portable installs, replace the executable from Spotify and rerun configuration if its path changed.
 - Startup and pairing state were tested with the official Windows build. Controlled tests cover queue and transport events. Playback on the affected account still requires its owner to pair and verify it.
 - Device handoff cancels Lime's playback intent. Select a queue track explicitly to take control again.

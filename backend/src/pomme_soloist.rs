@@ -8,7 +8,7 @@ use std::{
   sync::atomic::{AtomicBool, Ordering},
 };
 use tokio::{process::Child, sync::Notify};
-use tokio_tungstenite::tungstenite::{protocol::WebSocketConfig, Message};
+use tokio_tungstenite::tungstenite::{Message, protocol::WebSocketConfig};
 
 pub(super) struct Player {
   child: Mutex<Option<Child>>,
@@ -17,19 +17,33 @@ pub(super) struct Player {
   pub connected: AtomicBool,
   pub paired: AtomicBool,
   #[cfg(windows)]
+  capture: Option<crate::live_spectrum::SoloistCapture>,
+  #[cfg(windows)]
   _job: Option<job::Job>,
 }
 impl Player {
   pub async fn shutdown(&self) {
+    #[cfg(windows)]
+    if let Some(capture) = &self.capture {
+      capture.stop();
+    }
     self.stop.notify_one();
     self.connected.store(false, Ordering::Release);
     if let Some(mut child) = self.child.lock().await.take() {
       let _ = child.kill().await;
     }
   }
+  pub fn spectrum(&self) -> Result<[f64; 32]> {
+    #[cfg(windows)]
+    if let Some(capture) = &self.capture {
+      return capture.bands();
+    }
+    bail!("Soloist process audio capture is unavailable")
+  }
+
   pub fn send(&self, command: Value) -> Result<()> {
     if !self.connected.load(Ordering::Acquire) {
-      bail!("Soloist connection ended. Press R to reconnect.");
+      bail!("Soloist connection ended. Press F5 to reconnect.");
     }
     if !self.paired.load(Ordering::Acquire) {
       bail!("Open Spotify on the same network and select Lime Soloist in the device menu to pair.");
@@ -133,6 +147,8 @@ pub(super) async fn start(backend: &Arc<Backend>, params: &Value) -> Result<()> 
     connected: AtomicBool::new(true),
     paired: AtomicBool::new(false),
     #[cfg(windows)]
+    capture: crate::live_spectrum::SoloistCapture::start(pid).ok(),
+    #[cfg(windows)]
     _job: Some(job),
   });
   *backend.soloist.lock().await = Some(player.clone());
@@ -173,11 +189,15 @@ pub(super) async fn start(backend: &Arc<Backend>, params: &Value) -> Result<()> 
     }
     if let (Some(backend), Some(player)) = (weak_backend.upgrade(), weak_player.upgrade()) {
       player.connected.store(false, Ordering::Release);
+      #[cfg(windows)]
+      if let Some(capture) = &player.capture {
+        capture.stop();
+      }
       if current(&backend, &player).await {
         let mut q = backend.queue.lock().await;
         q.freeze();
         q.error =
-          "Soloist disconnected. Press R to reconnect; update Soloist if its build has expired."
+          "Soloist disconnected. Press F5 to reconnect; update Soloist if its build has expired."
             .into();
       }
     }
@@ -254,6 +274,51 @@ pub(super) fn command(name: &str) -> Value {
   json!({"type":"command", "command":name})
 }
 
+const ROLLOVER_END_WINDOW_MS: u64 = 2_000;
+const IDLE_END_WINDOW_MS: u64 = 5_000;
+
+fn at_track_end(q: &Queue, tolerance: u64) -> bool {
+  let duration = q.tracks.get(q.index).map_or(0, |track| track.dur_ms);
+  q.play_intent
+    && q.soloist_track_confirmed
+    && duration > 0
+    && q.position_ms() >= duration - tolerance.min(duration / 2)
+}
+
+async fn advance_queue(
+  backend: &Backend,
+  player: &Arc<Player>,
+  generation: u64,
+  rollover: bool,
+  tolerance: u64,
+) {
+  let _guard = backend.commands.lock().await;
+  if !current(backend, player).await {
+    return;
+  }
+  let mut q = backend.queue.lock().await;
+  if q.generation != generation || !at_track_end(&q, tolerance) {
+    return;
+  }
+  let next = q.next_index(true);
+  q.freeze();
+  q.soloist_track_confirmed = false;
+  drop(q);
+  // Spotify may already have started its own next song. Stop that stream even
+  // when Lime's queue ends here, and let Lime's repeat and queue order decide.
+  if rollover || next.is_none() {
+    if let Err(error) = player.send(command("pause")) {
+      backend.playback_error(error).await;
+      return;
+    }
+  }
+  if let Some(index) = next {
+    if let Err(error) = load(backend, player, index).await {
+      backend.playback_error(error).await;
+    }
+  }
+}
+
 async fn apply(backend: &Arc<Backend>, player: &Arc<Player>, value: &Value) {
   if !current(backend, player).await {
     return;
@@ -281,69 +346,70 @@ async fn apply(backend: &Arc<Backend>, player: &Arc<Player>, value: &Value) {
     let mut q = backend.queue.lock().await;
     q.freeze();
     q.error =
-      "Soloist rejected the playback command. Check pairing, then press R to reconnect.".into();
+      "Soloist rejected the playback command. Check pairing, then press F5 to reconnect.".into();
     return;
   }
   let mut q = backend.queue.lock().await;
+  let reports_track = matches!(kind, "playback_state" | "track_changed");
+  if reports_track && value["is_active"].as_bool() == Some(false) {
+    q.freeze();
+    return;
+  }
+  let uri = text(&value["item"], "uri");
+  let rollover = reports_track && !uri.is_empty() && q.current_uri().as_deref() != Some(uri);
+  let status = text(value, "status");
+  let idle = matches!(kind, "playback_state" | "playback_changed") && status == "idle";
+  // Spotify can start a new track directly after buffering the old track,
+  // without emitting idle. The old position still belongs to Lime's queue.
+  let tolerance = if rollover {
+    ROLLOVER_END_WINDOW_MS
+  } else {
+    IDLE_END_WINDOW_MS
+  };
+  if (rollover || idle) && at_track_end(&q, tolerance) {
+    let generation = q.generation;
+    drop(q);
+    advance_queue(backend, player, generation, rollover, tolerance).await;
+    return;
+  }
+
   match kind {
     "playback_state" | "track_changed" => {
-      let uri = text(&value["item"], "uri");
-      if !uri.is_empty() && q.current_uri().as_deref() != Some(uri) {
-        if q.loading {
-          return;
-        } // Older track event while a new Play is in flight.
+      if rollover {
+        if !q.soloist_track_confirmed {
+          return; // A stale track update during a Lime load or after Lime stopped.
+        }
         q.freeze();
+        q.soloist_track_confirmed = false;
         q.error =
           "Playback changed in Spotify. Select a Lime queue track to resume control.".into();
         return;
       }
-      if !uri.is_empty() && q.current_uri().as_deref() == Some(uri) {
+      if !uri.is_empty() && q.play_intent {
         q.soloist_track_confirmed = true;
       }
       if kind == "playback_state" {
-        if value["is_active"].as_bool() == Some(false) {
-          q.freeze();
+        if q.play_intent && !q.soloist_track_confirmed {
           return;
         }
         let position = anchor_position(&value["position"]).unwrap_or(q.position);
-        apply_status(&mut q, text(value, "status"), position);
+        apply_status(&mut q, status, position);
         if let Some(volume) = value["volume"].as_u64() {
           q.volume = volume.min(100) as u8;
         }
       }
     }
     "playback_changed" => {
-      let position = q.position_ms();
-      let status = text(value, "status");
-      if q.loading && !q.soloist_track_confirmed {
+      if !q.soloist_track_confirmed {
         return;
       }
-      if status == "idle" && q.play_intent && q.playing {
-        let duration = q.tracks.get(q.index).map(|t| t.dur_ms).unwrap_or(0);
-        if duration > 0 && position.saturating_add(5000) >= duration {
-          let next = q.next_index(true);
-          let generation = q.generation;
-          q.freeze();
-          q.play_intent = next.is_some();
-          drop(q);
-          if let Some(index) = next {
-            let _guard = backend.commands.lock().await;
-            let valid = {
-              let q = backend.queue.lock().await;
-              q.generation == generation && q.play_intent
-            };
-            if valid && current(backend, player).await {
-              if let Err(error) = load(backend, player, index).await {
-                backend.playback_error(error).await;
-              }
-            }
-          }
-          return;
-        }
-      }
+      let position = q.position_ms();
       apply_status(&mut q, status, position);
     }
     "position_sync" => {
+      if !q.soloist_track_confirmed {
+        return;
+      }
       if let Some(position) = anchor_position(&value["position"]) {
         let playing = q.playing;
         q.reset_clock(position, playing);
@@ -454,6 +520,8 @@ mod tests {
       connected: AtomicBool::new(true),
       paired: AtomicBool::new(true),
       #[cfg(windows)]
+      capture: None,
+      #[cfg(windows)]
       _job: None,
     });
     *backend.soloist.lock().await = Some(player.clone());
@@ -525,6 +593,7 @@ mod tests {
     {
       let mut q = backend.queue.lock().await;
       q.position = 179500;
+      q.soloist_track_confirmed = true;
       q.playing = true;
       q.play_intent = true;
     }
@@ -555,6 +624,67 @@ mod tests {
     assert!(!q.loading);
     assert!(!q.error.contains("private-fixture"));
   }
+  #[tokio::test]
+  async fn spotify_rollover_after_buffering_follows_lime_queue() {
+    let (backend, player, mut rx) = fixture().await;
+    {
+      let mut q = backend.queue.lock().await;
+      q.position = 179000;
+      q.soloist_track_confirmed = true;
+      q.playing = true;
+      q.play_intent = true;
+    }
+    apply(
+      &backend,
+      &player,
+      &json!({"type":"playback_changed","status":"buffering"}),
+    )
+    .await;
+    let rollover = json!({"type":"track_changed","item":{"uri":"spotify:track:autoplay"}});
+    apply(&backend, &player, &rollover).await;
+    assert_eq!(rx.try_recv().unwrap()["command"], "pause");
+    assert_eq!(rx.try_recv().unwrap()["command"], "activate");
+    assert_eq!(
+      rx.try_recv().unwrap()["uri"],
+      format!("spotify:track:{:022}", 1)
+    );
+    apply(&backend, &player, &rollover).await;
+    assert!(rx.try_recv().is_err());
+    let q = backend.queue.lock().await;
+    assert_eq!(q.index, 1);
+    assert!(q.loading && q.error.is_empty());
+  }
+
+  #[tokio::test]
+  async fn spotify_rollover_stops_at_queue_end_and_mid_track_change_stays_external() {
+    let (backend, player, mut rx) = fixture().await;
+    let rollover = json!({"type":"track_changed","item":{"uri":"spotify:track:autoplay"}});
+    for position in [90_000, 179_000] {
+      {
+        let mut q = backend.queue.lock().await;
+        q.index = 1;
+        q.position = position;
+        q.soloist_track_confirmed = true;
+        q.playing = true;
+        q.play_intent = true;
+        q.error.clear();
+      }
+      apply(&backend, &player, &rollover).await;
+      let q = backend.queue.lock().await;
+      assert!(!q.playing && !q.play_intent);
+      if position == 179_000 {
+        assert_eq!(rx.try_recv().unwrap()["command"], "pause");
+        assert!(q.error.is_empty());
+      } else {
+        assert!(q.error.starts_with("Playback changed in Spotify"));
+      }
+      assert!(rx.try_recv().is_err());
+    }
+    apply(&backend, &player, &rollover).await;
+    assert!(backend.queue.lock().await.error.is_empty());
+    assert!(rx.try_recv().is_err());
+  }
+
   #[test]
   fn a_dispatched_command_is_not_playback_confirmation() {
     let mut q = Queue {
