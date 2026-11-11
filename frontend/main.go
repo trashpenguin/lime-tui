@@ -1894,6 +1894,22 @@ func (m model) queueTitle() string {
 		m.st.QueuePos+1, len(q), fmtLongTime(left))
 }
 
+func (m model) playbackModeIndicators() string {
+	inactive := lipgloss.NewStyle().Foreground(fgFaint)
+	active := lipgloss.NewStyle().Foreground(accentHi).Bold(true)
+	shuffle := inactive.Render("⇄ off")
+	if m.st.Shuffle {
+		shuffle = active.Render("⇄ on")
+	}
+	repeatMode := max(0, min(m.st.Repeat, 2))
+	repeatStyle := inactive
+	if repeatMode != 0 {
+		repeatStyle = active
+	}
+	repeat := repeatStyle.Render("↻ " + [3]string{"off", "all", "one"}[repeatMode])
+	return shuffle + "  " + repeat
+}
+
 func (m model) transportPanel(w int) string {
 	icon := "="
 	if !m.st.Playing {
@@ -1942,11 +1958,7 @@ func (m model) transportPanel(w int) string {
 	if m.focus == focusPlayer {
 		volSt = pink
 	}
-	shuf, rep := "off", [3]string{"off", "all", "one"}[min(m.st.Repeat, 2)]
-	if m.st.Shuffle {
-		shuf = "on"
-	}
-	r2 := faint.Render(fmt.Sprintf("⇄ %s  ↻ %s  vol ", shuf, rep)) +
+	r2 := m.playbackModeIndicators() + faint.Render("  vol ") +
 		volSt.Render(strings.Repeat("▮", volSegs)+strings.Repeat("▯", 6-volSegs)) +
 		dim.Render(fmt.Sprintf(" %d%% ", m.st.Volume))
 	times := fmtTime(m.st.Pos) + " "

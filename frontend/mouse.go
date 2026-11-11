@@ -66,11 +66,7 @@ func (l layout) recentTop() int  { return l.qh + l.libH + 2 + 2 + 3 }
 func (m model) progressGeometry(w int) (x, width int) {
 	times := fmtTime(m.st.Pos) + " "
 	timee := " " + fmtTime(m.st.Dur)
-	shuf, rep := "off", [3]string{"off", "all", "one"}[min(m.st.Repeat, 2)]
-	if m.st.Shuffle {
-		shuf = "on"
-	}
-	right := fmt.Sprintf("⇄ %s  ↻ %s  vol ", shuf, rep) +
+	right := m.playbackModeIndicators() + "  vol " +
 		strings.Repeat("▮", 6) + fmt.Sprintf(" %d%% ", m.st.Volume)
 	barW := max(10, w-lipgloss.Width(times)-lipgloss.Width(timee)-lipgloss.Width(right)-8)
 	return 6 + lipgloss.Width(times), barW

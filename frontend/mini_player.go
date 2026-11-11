@@ -114,14 +114,9 @@ func (m model) miniView() string {
 			meta = timer
 		}
 	}
-	shuffle := "off"
-	if m.st.Shuffle {
-		shuffle = "on"
-	}
-	repeat := []string{"off", "all", "one"}[max(0, min(m.st.Repeat, 2))]
 	info := []string{miniPair(accentStyle.Render("LIME"), faint.Render("MINI PLAYER"), infoWidth), miniPair(accentStyle.Render(state), dim.Render(meta), infoWidth)}
 	if headerRows >= 3 {
-		info = append(info, faint.Render(miniFit("⇄ "+shuffle+"   ↻ "+repeat, infoWidth)))
+		info = append(info, m.playbackModeIndicators())
 	}
 
 	var lines []string
