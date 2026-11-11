@@ -335,7 +335,11 @@ impl Backend {
         Duration::from_secs(50),
         StreamingPlayer::new_cache_only(StreamingConfig {
           device_name: "Lime TUI".into(),
-          bitrate: 160,
+          bitrate: match std::env::var("LIME_NATIVE_BITRATE").as_deref() {
+            Ok("96") => 96,
+            Ok("320") => 320,
+            _ => 160,
+          },
           audio_cache: false,
           autoplay: false,
           initial_volume: volume,

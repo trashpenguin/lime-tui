@@ -100,3 +100,49 @@ func TestFocusedHistorySelectionSurvivesNewAccountPlays(t *testing.T) {
 		t.Fatal("refresh moved selection to a different track")
 	}
 }
+
+func TestSpotifyStatsRankAccountPlaysAndKeepLocalHistorySeparate(t *testing.T) {
+	m := mouseModel(100, 38, 1)
+	m.statsOpen = true
+	m.listenHistory = &listeningHistory{}
+	now := time.Now()
+	m.listenHistory.record(engine.Track{ID: "local", Title: "Lime track"}, now, time.Minute, true)
+	next, _ := m.updateStats(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
+	m = next.(model)
+	remote := engine.Track{ID: "remote", Title: "Spotify track", Artist: "Spotify artist", Album: "Spotify album"}
+	next, _ = m.applySpotifyHistory(spotifyHistoryMsg{token: m.recentSyncToken, tracks: []engine.Track{remote, remote}})
+	m = next.(model)
+	stats := m.statsSummary(now)
+	if stats.Plays != 2 || len(stats.Tracks) != 1 || stats.Tracks[0].ID != "remote" || stats.Tracks[0].Plays != 2 ||
+		len(stats.Artists) != 1 || stats.Artists[0].Plays != 2 || len(stats.Albums) != 1 || stats.Albums[0].Plays != 2 {
+		t.Fatalf("unexpected Spotify rankings: %+v", stats)
+	}
+	if !strings.Contains(m.statsView(), "SPOTIFY RECENT") {
+		t.Fatal("Spotify rankings lack a source label")
+	}
+	m.recentSource = "local"
+	if stats := m.statsSummary(now); len(stats.Tracks) != 0 {
+		t.Fatal("local fallback was shown as Spotify data")
+	}
+	next, _ = m.updateStats(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
+	m = next.(model)
+	if stats := m.statsSummary(now); stats.Plays != 1 || len(stats.Tracks) != 1 || stats.Tracks[0].ID != "local" {
+		t.Fatalf("unexpected Lime history: %+v", stats)
+	}
+}
+
+func TestRecentPanelShowsSpotifyRetryWithLocalTracks(t *testing.T) {
+	m := recentModel()
+	m.recent = []engine.Track{{ID: "local", Title: "Lime track"}}
+	m.recentSource = "local"
+	m.recentSyncError = "Spotify history rate-limited"
+	m.recentNextSync = time.Now().Add(time.Minute)
+	m.eng = &engine.Engine{}
+	body := m.recentListPanel(40, 7)
+	if !strings.Contains(body, m.recent[0].Title) || !strings.Contains(body, "Spotify rate-limited") {
+		t.Fatal("recent panel should keep local tracks and show the Spotify retry status")
+	}
+	if cmd := m.syncSpotifyHistory(); cmd != nil {
+		t.Fatal("manual refresh bypassed Spotify cooldown")
+	}
+}

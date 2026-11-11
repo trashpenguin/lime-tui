@@ -60,7 +60,7 @@ func statsListStart(selected, offset, rows, count int) int {
 func statsTruncate(text string, width int) string { return ansi.Truncate(text, width, "…") }
 
 func (m model) playStatsTrack() (tea.Model, tea.Cmd) {
-	tracks := m.listenHistory.summary(m.statsRange, time.Now()).Tracks
+	tracks := m.statsSummary(time.Now()).Tracks
 	if len(tracks) == 0 {
 		return m, nil
 	}
@@ -90,7 +90,7 @@ func (m model) updateStatsMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	if msg.X > artistX && msg.X < artistX+l.widths[1]+1 && msg.Y >= l.tracksY && msg.Y < l.tracksY+l.panelHeight-1 {
 		return m.updateStatsArtistMouse(msg)
 	}
-	tracks := m.listenHistory.summary(m.statsRange, time.Now()).Tracks
+	tracks := m.statsSummary(time.Now()).Tracks
 	if msg.X <= l.x || msg.X >= l.x+l.widths[0]+1 || msg.Y < l.tracksY || msg.Y >= l.tracksY+l.listRows || msg.Action != tea.MouseActionPress {
 		if msg.Button == tea.MouseButtonLeft && msg.Action == tea.MouseActionPress {
 			m.statsClickID = ""
@@ -124,4 +124,39 @@ func (m model) updateStatsMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		m.statsClickID, m.statsClickAt = id, now
 	}
 	return m, nil
+}
+
+// Spotify rankings count only the plays returned by the recent-history endpoint.
+func (m model) statsSummary(now time.Time) statsSummary {
+	if !m.statsSpotify {
+		return m.listenHistory.summary(m.statsRange, now)
+	}
+	summary := m.listenHistory.summary(statsAllTime, now)
+	summary.Plays = 0
+	summary.Tracks, summary.Artists, summary.Albums = nil, nil, nil
+	if m.recentSource != "spotify" {
+		return summary
+	}
+	tracks := make(map[string]listeningRecord)
+	artists := make(map[string]listeningRecord)
+	albums := make(map[string]listeningRecord)
+	for _, track := range m.recent {
+		if track.ID == "" {
+			continue
+		}
+		summary.Plays++
+		record := listeningRecord{Title: track.Title, Artist: track.Artist, Album: track.Album, Plays: 1}
+		mergeListenRecord(tracks, track.ID, record)
+		if track.Artist != "" {
+			mergeListenRecord(artists, track.Artist, listeningRecord{Title: track.Artist, Plays: 1})
+		}
+		if track.Album != "" {
+			record.Title = track.Album
+			mergeListenRecord(albums, track.Album+"\x00"+track.Artist, record)
+		}
+	}
+	summary.Tracks = topListenRecords(tracks)
+	summary.Artists = topListenRecords(artists)
+	summary.Albums = topListenRecords(albums)
+	return summary
 }

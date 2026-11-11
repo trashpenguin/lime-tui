@@ -23,6 +23,7 @@ func (m *model) clearSpotifyPersonalData() error {
 	m.recent = nil
 	m.localRecent = nil
 	m.recentSource = ""
+	m.recentSyncError = ""
 	m.recentSyncBusy = false
 	m.recentSyncToken++
 	m.recentNextSync = time.Time{}

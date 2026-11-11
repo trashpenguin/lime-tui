@@ -1,12 +1,15 @@
 package main
 
 import (
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
-	"github.com/muesli/termenv"
+	"image"
 	"strings"
 	"testing"
 	"time"
+
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
+	"github.com/muesli/termenv"
 )
 
 func TestMiniPlayerHasWordmarkAndSeparateTrackDetails(t *testing.T) {
@@ -99,5 +102,28 @@ func TestMiniCardDoesNotStretchAcrossWideWindow(t *testing.T) {
 	}
 	if !found {
 		t.Fatal("mini card border not rendered")
+	}
+}
+
+func TestMiniPlayerRendersCoverBesideTrackDetails(t *testing.T) {
+	m := mouseModel(80, 10, 0)
+	m.mini = true
+	m.st.Now.Title = "Track title"
+	m.st.Now.Artist = "Artist name"
+	m.st.Now.Album = "Album name"
+
+	if view := ansi.Strip(m.View()); !strings.Contains(view, "♪") {
+		t.Fatal("mini player missing placeholder while artwork is unavailable")
+	}
+
+	m.art = image.NewRGBA(image.Rect(0, 0, 16, 16))
+	view := ansi.Strip(m.View())
+	if !strings.Contains(view, "▀▀▀▀▀▀▀▀   Track title") || !strings.Contains(view, "Album name") {
+		t.Fatal("mini player missing cover beside track details")
+	}
+
+	m.w = 40
+	if view := ansi.Strip(m.View()); strings.Contains(view, "▀") || !strings.Contains(view, "Track title") {
+		t.Fatal("narrow mini player should show the track without the cover")
 	}
 }

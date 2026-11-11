@@ -30,6 +30,7 @@ func setupSpotifyProfile() {
 	os.Setenv("XDG_CACHE_HOME", filepath.Join(root, "cache"))
 	os.Setenv("XDG_STATE_HOME", filepath.Join(root, "state"))
 	loadSoloistSettings()
+	os.Setenv(nativeBitrateEnv, nativeAudioQualities[savedAudioQuality()].bitrate)
 	if os.Getenv("GOMEMLIMIT") == "" {
 		debug.SetMemoryLimit(64 << 20)
 	}

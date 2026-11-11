@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.1.0 — 2026-11-12
+
+- Add Spotify Recent to Stats. Press s to switch between Lime history and rankings from up to 50 recent Spotify plays. Listening time and streaks use local history.
+- Show Spotify sync, retry times, and local fallback in Recently Played. Manual refresh honors Spotify's cooldown.
+- Put album artwork beside track details in the mini player. Highlight active shuffle and repeat in both players.
+- Add F6 Audio Quality with 96, 160, and 320 kbps preferences for native playback. Changes apply after restarting Lime. The Soloist panel explains how to select Lossless from Spotify Connect on a phone when available.
+- Fix Escape routing when help is open over lyrics and duplicate spaces in search input. Update contextual key help.
+
 ## v1.0.8 — 2026-11-09
 
 - Add Spotify catalog search previews and artwork cards for Library artists, albums, and playlists. Open artist songs and albums, or browse a collection before playing it with e.

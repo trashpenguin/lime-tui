@@ -149,3 +149,30 @@ func TestSearchAlbumTabCanBeClicked(t *testing.T) {
 		t.Fatal("clicking Albums did not switch the search tab")
 	}
 }
+
+func TestHelpEscClosesHelpBeforeLyrics(t *testing.T) {
+	m := mouseModel(100, 38, 0)
+	m.lyricsOpen, m.helpOpen = true, true
+	next, _ := m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	got := next.(model)
+	if got.helpOpen || !got.lyricsOpen {
+		t.Fatal("Esc should close help and leave the lyrics open")
+	}
+}
+
+func TestSearchInputKeepsPrintableShortcutsAndSingleSpaces(t *testing.T) {
+	m := mouseModel(100, 38, 0)
+	m.searchOpen, m.sInput = true, true
+	for _, key := range []tea.KeyMsg{
+		{Type: tea.KeyRunes, Runes: []rune{'s'}},
+		{Type: tea.KeySpace, Runes: []rune{' '}},
+		{Type: tea.KeyRunes, Runes: []rune{'r'}},
+		{Type: tea.KeyRunes, Runes: []rune{'?'}},
+	} {
+		next, _ := m.Update(key)
+		m = next.(model)
+	}
+	if m.sQuery != "s r?" || m.helpOpen {
+		t.Fatalf("typing shortcuts produced query %q, help open=%v", m.sQuery, m.helpOpen)
+	}
+}

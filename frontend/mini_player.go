@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
-	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/x/ansi"
 	"strings"
 	"time"
+
+	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 )
 
 func (m model) miniState() string {
@@ -81,11 +82,8 @@ func (m model) miniView() string {
 	if m.loading != "" && m.loading != m.st.Now.Title {
 		title, artist = m.loading, "Preparing playback…"
 	}
-	if m.st.Now.Album != "" && m.w >= 68 && m.loading == "" {
-		artist += " · " + m.st.Now.Album
-	}
 	state := m.miniState()
-	if m.w < 36 || m.h < 8 {
+	if m.w < 36 || m.h < 9 {
 		width := m.w
 		detail := artist
 		if m.note != "" {
@@ -97,40 +95,57 @@ func (m model) miniView() string {
 	}
 	inner := min(86, m.w-4)
 	contentWidth := inner - 2
-	headerRows := 2
-	if m.h >= 10 {
-		headerRows = 3
-	}
-	infoWidth := contentWidth
-	timer := ""
-	if !m.sleepUntil.IsZero() {
-		timer = "sleep " + fmtTime(max(time.Duration(0), time.Until(m.sleepUntil)))
-	}
 	meta := fmt.Sprintf("VOL %d%%", max(0, min(m.st.Volume, 100)))
-	if timer != "" {
-		if lipgloss.Width(state)+lipgloss.Width(meta)+lipgloss.Width(timer)+5 <= infoWidth {
+	if !m.sleepUntil.IsZero() {
+		timer := "sleep " + fmtTime(max(time.Duration(0), time.Until(m.sleepUntil)))
+		if lipgloss.Width(state)+lipgloss.Width(meta)+lipgloss.Width(timer)+5 <= contentWidth {
 			meta += " · " + timer
 		} else {
 			meta = timer
 		}
 	}
-	info := []string{miniPair(accentStyle.Render("LIME"), faint.Render("MINI PLAYER"), infoWidth), miniPair(accentStyle.Render(state), dim.Render(meta), infoWidth)}
-	if headerRows >= 3 {
-		info = append(info, m.playbackModeIndicators())
+
+	const coverRows = 4
+	coverWidth := 0
+	var cover []string
+	if contentWidth >= 40 && configBool(m.cfg, "artwork.enabled", true) {
+		coverWidth = coverRows * 2
+		if m.loading == "" || m.loading == m.st.Now.Title {
+			cover = renderArtwork(m.art, coverWidth, coverRows)
+		}
+		if len(cover) == 0 {
+			cover = coverPlaceholder(coverWidth, coverRows, "   ♪")
+		}
+	}
+	detailWidth := contentWidth
+	if coverWidth > 0 {
+		detailWidth -= coverWidth + artworkGap
 	}
 
-	var lines []string
-	for i := 0; i < headerRows; i++ {
-		lines = append(lines, pad(info[i], infoWidth))
+	album := m.st.Now.Album
+	if m.loading != "" && m.loading != m.st.Now.Title {
+		album = ""
 	}
-	lines = append(lines, bright.Render(miniFit(title, contentWidth)))
-	detail := artist
-	hasNoticeRow := m.h >= headerRows+7
-	if !hasNoticeRow && m.note != "" {
-		detail = m.note
+	if m.h == 9 && m.note != "" {
+		album = m.note
 	}
-	lines = append(lines, dim.Render(miniFit(detail, contentWidth)), m.miniProgress(contentWidth))
-	if hasNoticeRow {
+	details := []string{
+		bright.Render(miniFit(title, detailWidth)),
+		dim.Render(miniFit(artist, detailWidth)),
+		faint.Render(miniFit(album, detailWidth)),
+		m.playbackModeIndicators(),
+	}
+	lines := []string{
+		miniPair(accentStyle.Render("LIME · "+state), dim.Render(meta), contentWidth),
+	}
+	for row, detail := range details {
+		if coverWidth > 0 {
+			detail = cover[row] + strings.Repeat(" ", artworkGap) + detail
+		}
+		lines = append(lines, detail)
+	}
+	lines = append(lines, m.miniProgress(contentWidth))
+	if m.h >= 10 && m.note != "" {
 		lines = append(lines, dim.Render(miniFit(m.note, contentWidth)))
 	}
 	lines = append(lines, faint.Render(miniFit(miniHints(contentWidth), contentWidth)))

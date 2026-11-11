@@ -398,7 +398,7 @@ func (m model) updateStats(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if msg.String() != "enter" && msg.String() != "e" && msg.String() != "E" {
 		m.cancelStatsAlbum()
 	}
-	summary := m.listenHistory.summary(m.statsRange, time.Now())
+	summary := m.statsSummary(time.Now())
 	tracks := summary.Tracks
 	m.statsTrackSel = max(0, min(m.statsTrackSel, len(tracks)-1))
 	m.statsArtistSel = max(0, min(m.statsArtistSel, len(summary.Artists)-1))
@@ -442,7 +442,26 @@ func (m model) updateStats(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "esc", "ctrl+c":
 		m.statsOpen = false
 		return m.requestRecentArtwork()
+	case "s", "S":
+		m.statsSpotify = !m.statsSpotify
+		m.statsErr = ""
+		m.statsTrackSel, m.statsTrackOffset = 0, 0
+		m.statsArtistSel, m.statsArtistOffset = 0, 0
+		m.statsAlbumSel, m.statsAlbumOffset = 0, 0
+		m, artists := m.requestStatsArtists()
+		if m.statsSpotify && !time.Now().Before(m.recentNextSync) {
+			history := m.syncSpotifyHistory()
+			return m, tea.Batch(artists, history)
+		}
+		return m, artists
 	case "r", "R":
+		if m.statsSpotify {
+			if !time.Now().Before(m.recentNextSync) {
+				cmd := m.syncSpotifyHistory()
+				return m, cmd
+			}
+			return m, nil
+		}
 		m.listenHistory = loadListeningHistory()
 		m.statsErr = ""
 		m.statsTrackSel = 0
@@ -451,11 +470,17 @@ func (m model) updateStats(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.statsArtistData = nil
 		m.artistArtRequested = nil
 	case "left", "h":
+		if m.statsSpotify {
+			return m, nil
+		}
 		m.statsRange = (m.statsRange + statsRange(len(statsRangeNames)) - 1) % statsRange(len(statsRangeNames))
 		m.statsTrackSel, m.statsErr = 0, ""
 		m.statsArtistSel, m.statsArtistOffset = 0, 0
 		m.statsAlbumSel, m.statsAlbumOffset = 0, 0
 	case "right", "l":
+		if m.statsSpotify {
+			return m, nil
+		}
 		m.statsRange = (m.statsRange + 1) % statsRange(len(statsRangeNames))
 		m.statsTrackSel, m.statsErr = 0, ""
 		m.statsArtistSel, m.statsArtistOffset = 0, 0
@@ -587,11 +612,7 @@ func (m model) statsView() string {
 	pink := lipgloss.NewStyle().Foreground(accentHi).Bold(true)
 	green := lipgloss.NewStyle().Foreground(accentHi)
 	now := time.Now()
-	history := m.listenHistory
-	if history == nil {
-		history = &listeningHistory{}
-	}
-	summary := history.summary(m.statsRange, now)
+	summary := m.statsSummary(now)
 	var rangeLabels []string
 	for i, name := range statsRangeNames {
 		if iw < 75 {
@@ -606,7 +627,7 @@ func (m model) statsView() string {
 		rangeLabels = append(rangeLabels, label)
 	}
 	compact := l.compact
-	selector := statsPanel("STATS · ←/→ RANGE", strings.Join(rangeLabels, "  |  "), iw, 3, true, accentHi)
+	selector := statsPanel("LIME HISTORY · ←/→ RANGE · S SOURCE", strings.Join(rangeLabels, "  |  "), iw, 3, true, accentHi)
 	minsToday := summary.TodaySeconds / 60
 	minsTotal := summary.Seconds / 60
 	streak := fmt.Sprintf("%d-day streak (best %d)", summary.Streak, summary.Best)
@@ -620,6 +641,29 @@ func (m model) statsView() string {
 		dateSummary += fmt.Sprintf(" · %dm today", minsToday)
 	}
 	status := statsPanel(statsRangeNames[m.statsRange], pink.Render(streak)+dim.Render("  ·  "+dateSummary), iw, 3, false, accent)
+
+	if m.statsSpotify {
+		selector = statsPanel("SPOTIFY RECENT · S SOURCE", dim.Render("Rankings from up to 50 recent Spotify plays"), iw, 3, true, accentHi)
+		recentStatus := fmt.Sprintf("%d recent plays", summary.Plays)
+		retryStatus := ""
+		if m.recentSource != "spotify" {
+			recentStatus = "Spotify history unavailable"
+			switch {
+			case m.recentSyncBusy:
+				recentStatus = "Loading Spotify history…"
+			case m.recentSyncError != "":
+				recentStatus = m.recentSyncError
+				if now.Before(m.recentNextSync) {
+					retryStatus = "Retries after " + m.recentNextSync.Local().Format("15:04:05")
+				}
+			}
+		}
+		body := dim.Render(statsTruncate(recentStatus, iw))
+		if retryStatus != "" {
+			body += "\n" + faint.Render(statsTruncate(retryStatus, iw))
+		}
+		status = statsPanel("SPOTIFY ACCOUNT", body, iw, 3, false, accent)
+	}
 
 	selected := max(0, min(m.statsTrackSel, len(summary.Tracks)-1))
 	start := statsListStart(selected, m.statsTrackOffset, l.listRows, len(summary.Tracks))
@@ -664,7 +708,7 @@ func (m model) statsView() string {
 	chart := statsPanel(chartTitle, strings.Join(chartRows, "\n"), chartWidth, chartHeight, false, accent)
 	content := lipgloss.JoinVertical(lipgloss.Left, selector, status, top, chart)
 	if !compact {
-		detail := "No tracks in this range."
+		detail := "No tracks in this view."
 		if len(summary.Tracks) > 0 {
 			record := summary.Tracks[selected]
 			detail = record.Title
@@ -893,9 +937,10 @@ func (m model) updateSearch(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	default:
 		if msg.Type == tea.KeyRunes || msg.Type == tea.KeySpace {
 			m.sInput = true // typing anywhere returns focus to the input
-			m.sQuery += string(msg.Runes)
 			if msg.Type == tea.KeySpace {
 				m.sQuery += " "
+			} else {
+				m.sQuery += string(msg.Runes)
 			}
 		}
 	}

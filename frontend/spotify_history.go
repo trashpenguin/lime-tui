@@ -15,7 +15,7 @@ type spotifyHistoryMsg struct {
 }
 
 func (m *model) syncSpotifyHistory() tea.Cmd {
-	if m.eng == nil || m.recentSyncBusy {
+	if m.eng == nil || m.recentSyncBusy || time.Now().Before(m.recentNextSync) {
 		return nil
 	}
 	m.recentSyncBusy = true
@@ -39,7 +39,9 @@ func (m model) applySpotifyHistory(msg spotifyHistoryMsg) (tea.Model, tea.Cmd) {
 	if m.recentSel >= 0 && m.recentSel < len(m.recent) {
 		selectedID = m.recent[m.recentSel].ID
 	}
+	m.recentSyncError = ""
 	if msg.err != nil {
+		m.recentSyncError = msg.err.Error()
 		m.recentSource = "local"
 		m.recent = append([]engine.Track(nil), m.localRecent...)
 		if previous != "local" {
@@ -59,5 +61,9 @@ func (m model) applySpotifyHistory(msg spotifyHistoryMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 	m.sRes.Recent = m.recent
+	if m.statsOpen && m.statsSpotify {
+		m.statsClickID = ""
+		return m.requestStatsArtists()
+	}
 	return withVisibleArtwork(m, nil)
 }

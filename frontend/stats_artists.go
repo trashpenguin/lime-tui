@@ -114,7 +114,7 @@ func (m model) requestStatsArtists() (model, tea.Cmd) {
 		return m, nil
 	}
 	l := m.statsLayout()
-	records := m.listenHistory.summary(m.statsRange, time.Now()).Artists
+	records := m.statsSummary(time.Now()).Artists
 	start := statsListStart(m.statsArtistSel, m.statsArtistOffset, statsArtistVisible(l), len(records))
 	var cmds []tea.Cmd
 	var pictures []engine.Track
@@ -236,7 +236,7 @@ func (m model) statsArtistCards(records []listeningRecord, l statsLayout) string
 
 func (m model) updateStatsArtistMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	l := m.statsLayout()
-	records := m.listenHistory.summary(m.statsRange, time.Now()).Artists
+	records := m.statsSummary(time.Now()).Artists
 	if msg.Action != tea.MouseActionPress {
 		return m, nil
 	}

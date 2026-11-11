@@ -1,12 +1,12 @@
 <p align="center"><img src="assets/lime.png" alt="Lime TUI logo" width="96"></p>
 
-# Lime TUI v1.0.8
+# Lime TUI v1.1.0
 
 **Your music. Your terminal.**
 
 A Spotify terminal player for Windows, combining Pomme's Go/Bubble Tea interface with a native Rust playback engine adapted from spotatui.
 
-[Download Windows setup](https://github.com/trashpenguin/lime-tui/releases/download/v1.0.8/LimeTUI-1.0.8-setup-x64.exe) · [Portable Windows ZIP](https://github.com/trashpenguin/lime-tui/releases/download/v1.0.8/LimeTUI-1.0.8-windows-x64.zip) · [Release notes](https://github.com/trashpenguin/lime-tui/releases/tag/v1.0.8) · [Changelog](CHANGELOG.md)
+[Download Windows setup](https://github.com/trashpenguin/lime-tui/releases/download/v1.1.0/LimeTUI-1.1.0-setup-x64.exe) · [Portable Windows ZIP](https://github.com/trashpenguin/lime-tui/releases/download/v1.1.0/LimeTUI-1.1.0-windows-x64.zip) · [Release notes](https://github.com/trashpenguin/lime-tui/releases/tag/v1.1.0) · [Changelog](CHANGELOG.md)
 
 **Initial preview:** the binaries are unsigned. Spotify distribution authorization and broader clean-machine/hardware qualification remain unresolved. See [release readiness](RELEASE-READINESS.md) and the [Spotify integration review](SPOTIFY-DISTRIBUTION-REVIEW.md). Publishing this repository does not establish Spotify approval.
 
@@ -43,9 +43,13 @@ Windows 10/11 x64 is the supported target. If the portable build reports a missi
 
 `Lime.exe --preview` prints a static sample interface without login, network requests or playback. `--help` shows the controls; `--version` shows the version.
 
-## What's new in v1.0.8
+## What's new in v1.1.0
 
-Search shows results by category with artwork previews. Open artists to browse top songs and albums. Library albums and playlists have artwork cards. Press **Enter** to open a collection and **e** to play it in full. Stats lets you play ranked tracks or browse ranked artists and albums. Windows Terminal uses a Lime profile fragment for the tab icon.
+The mini player now shows album artwork, track details, and a full-width progress bar. Both players highlight active shuffle and repeat.
+
+In Stats, press **s** to switch between Lime history and Spotify Recent, which ranks tracks, artists, and albums from up to 50 recent Spotify plays. Recently Played also shows when Spotify is syncing or rate-limiting requests. Listening time and streaks use Lime's local history.
+
+Press **F6** for Audio Quality. Native playback offers 96, 160, and 320 kbps and applies the saved preference after you restart Lime. For Spotify Soloist, choose Lossless through the Spotify mobile app's Connect device settings if the option is available for your Premium account.
 
 ## Controls
 
@@ -55,9 +59,11 @@ Search shows results by category with artwork previews. Open artists to browse t
 | Enter | Play a song or open the selected artist, album, or playlist |
 | `e` on an album or playlist | Play the whole collection |
 | Tab in Stats | Switch between ranked tracks, artists, and albums |
+| `s` in Stats | Switch between Lime history and Spotify Recent |
 | Space | Play/pause |
 | `n` / `p` | Next/previous; previous restarts after the first 3 seconds |
 | `a` / `A` while browsing | Append to queue / insert after current track |
+| `F6` | Open Audio Quality |
 | `F8` | Set up official Soloist playback or switch back to native |
 | `F12` | Save a playback support report beside Lime.exe |
 | `H` on the player screen | Refresh Spotify history (honors server cooldowns) |
@@ -166,4 +172,4 @@ The optional `scripts/PlaybackSoak.py` requires `--allow-audio`, a cached Premiu
 
 ## Credits and license
 
-Lime TUI builds on [Pomme TUI](https://github.com/trashpenguin/pomme-tui), the MIT frontend from [applemusic-tui](https://github.com/k1y0miiii/applemusic-tui), and [spotatui](https://github.com/LargeModGames/spotatui). All upstream notices remain intact. See [NOTICE.md](NOTICE.md), [LICENSE](LICENSE) and the dependency notices. The backend source retains its upstream package/module versions; the Lime application release is v1.0.8.
+Lime TUI builds on [Pomme TUI](https://github.com/trashpenguin/pomme-tui), the MIT frontend from [applemusic-tui](https://github.com/k1y0miiii/applemusic-tui), and [spotatui](https://github.com/LargeModGames/spotatui). All upstream notices remain intact. See [NOTICE.md](NOTICE.md), [LICENSE](LICENSE) and the dependency notices. The backend source retains its upstream package/module versions; the Lime application release is v1.1.0.

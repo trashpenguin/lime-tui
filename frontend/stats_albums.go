@@ -51,7 +51,7 @@ func (m model) loadStatsAlbum(play bool) (tea.Model, tea.Cmd) {
 	if m.statsAlbumBusy {
 		return m, nil
 	}
-	albums := m.listenHistory.summary(m.statsRange, time.Now()).Albums
+	albums := m.statsSummary(time.Now()).Albums
 	if len(albums) == 0 {
 		return m, nil
 	}
@@ -109,7 +109,7 @@ func (m model) applyStatsAlbum(msg statsAlbumMsg) (tea.Model, tea.Cmd) {
 }
 func (m model) updateStatsAlbumMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	l := m.statsLayout()
-	albums := m.listenHistory.summary(m.statsRange, time.Now()).Albums
+	albums := m.statsSummary(time.Now()).Albums
 	if msg.Action != tea.MouseActionPress {
 		return m, nil
 	}

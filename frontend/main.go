@@ -116,16 +116,19 @@ type model struct {
 
 	saveQueueUntil time.Time
 
-	libraryCategory  int
-	libraryOffset    int
-	libraryPaged     bool
-	librarySelection int
-	mini             bool
-	miniPrevFocus    int
-	sleepUntil       time.Time
-	sleepChoice      int
-	searchHistory    []string
-	historyIndex     int
+	libraryCategory    int
+	libraryOffset      int
+	libraryPaged       bool
+	librarySelection   int
+	mini               bool
+	miniPrevFocus      int
+	audioQualityOpen   bool
+	audioQualitySel    int
+	audioQualityNotice string
+	sleepUntil         time.Time
+	sleepChoice        int
+	searchHistory      []string
+	historyIndex       int
 
 	w, h        int
 	t           float64 // seconds since start, drives animation
@@ -145,6 +148,7 @@ type model struct {
 	recentArtRequested map[string]bool
 	localRecent        []engine.Track
 	recentSource       string
+	recentSyncError    string
 	recentSyncBusy     bool
 	recentSyncToken    uint64
 	recentNextSync     time.Time
@@ -253,6 +257,7 @@ type model struct {
 	statsErr             string
 	statsRes             engine.SearchResults
 	statsRange           statsRange
+	statsSpotify         bool
 	statsTrackSel        int
 	statsTrackOffset     int
 	statsAlbumSel        int
@@ -1085,20 +1090,26 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, tea.Quit
 	case tea.MouseMsg:
-		if m.mini {
+		if m.mini || m.audioQualityOpen {
 			return m, nil
 		}
 		next, command := m.updateMouse(msg)
 		return withVisibleArtwork(next, command)
 	case tea.KeyMsg:
+		if m.audioQualityOpen {
+			return m.updateAudioQuality(msg)
+		}
 		if msg.Type == tea.KeyF12 && m.phase == phaseReady {
 			return m, playbackSupportCmd(m.eng)
+		}
+		if m.helpOpen {
+			return m.updateHelp(msg)
 		}
 		if m.lyricsOpen && (msg.String() == "esc" || msg.String() == "l") {
 			m.lyricsOpen = false
 			return m, nil
 		}
-		if m.lyricsOpen && !m.helpOpen {
+		if m.lyricsOpen {
 			switch msg.String() {
 			case " ", "n", "p", "s", "r", "R", "f5", "[", "]", "\\", "?", "f1", "q", "ctrl+c", "left", "right", "up", "down":
 				focus := m.focus
@@ -1110,9 +1121,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			default:
 				return m, nil
 			}
-		}
-		if m.helpOpen {
-			return m.updateHelp(msg)
 		}
 		if m.phase == phaseReady && (msg.String() == "f1" || (msg.String() == "?" && !(m.searchOpen && m.sInput))) {
 			return m.openHelp()
@@ -1253,6 +1261,10 @@ func (m model) updateKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, doCmd(eng.CycleRepeat)
 	case "?", "f1":
 		return m.openHelp()
+	case "f6":
+		m.audioQualityOpen = true
+		m.audioQualitySel = savedAudioQuality()
+		m.audioQualityNotice = ""
 	case "f8":
 		return m, setupSoloistCmd()
 	case "H":
@@ -1553,11 +1565,30 @@ func (m model) recentListPanel(w, h int) string {
 		return ""
 	}
 	faint := lipgloss.NewStyle().Foreground(fgFaint)
-	if len(m.recent) == 0 {
-		return centeredRows(faint.Render(" nothing played yet"), w, rows)
+	status := ""
+	switch {
+	case m.recentSyncBusy:
+		status = "Syncing Spotify…"
+	case m.recentSyncError != "":
+		status = "Spotify unavailable"
+		if strings.Contains(m.recentSyncError, "rate-limited") {
+			status = "Spotify rate-limited"
+		}
+		if time.Now().Before(m.recentNextSync) {
+			status += " · " + m.recentNextSync.Local().Format("15:04")
+		}
+	case m.recentSource == "spotify":
+		status = "H refresh Spotify"
 	}
 	start, count := m.recentWindow(rows)
 	var lines []string
+	if len(m.recent) == 0 {
+		message := "nothing played yet in Lime"
+		if m.recentSource == "spotify" {
+			message = "No recent Spotify plays"
+		}
+		lines = append(lines, pad(faint.Render(message), w))
+	}
 	for visible := 0; visible < count; visible++ {
 		i := start + visible
 		track := m.recent[i]
@@ -1578,6 +1609,12 @@ func (m model) recentListPanel(w, h int) string {
 		lines = append(lines, pad(thumb[0]+"  "+style.Render(label), w))
 		lines = append(lines, pad(thumb[1]+"  "+faint.Render(track.Artist), w))
 		lines = append(lines, pad(thumb[2]+"  "+faint.Render(" "), w))
+	}
+	if status != "" && len(lines) < rows {
+		for len(lines) < rows-1 {
+			lines = append(lines, pad("", w))
+		}
+		lines = append(lines, pad(faint.Render(status), w))
 	}
 	for len(lines) < rows {
 		lines = append(lines, pad("", w))
@@ -2015,6 +2052,9 @@ func (m model) bootView() string {
 }
 
 func (m model) View() string {
+	if m.audioQualityOpen {
+		return m.audioQualityView()
+	}
 	if m.mini && m.phase == phaseReady && !m.searchOpen && !m.helpOpen && !m.acctOpen && !m.libraryOpen && !m.artistBrowser.open && !m.statsOpen && !m.discoveryOpen && !m.queueOpen {
 		return m.miniView()
 	}

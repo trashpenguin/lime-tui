@@ -59,28 +59,28 @@ var helpSections = []helpSection{
 		{"space", "play / pause"}, {"n / p", "next / previous"}, {"s", "shuffle toggle"}, {"r / R", "cycle repeat"},
 	}},
 	{"MINI PLAYER", []helpEntry{
-		{"space", "play / pause"}, {"n / p", "next / previous"}, {"← / →", "seek −5 / +5 sec"}, {"↑ / ↓", "volume up / down"}, {"m", "expand player"}, {"T", "cycle sleep timer"}, {"/", "search Spotify"}, {"q / ctrl+c", "quit player"},
+		{"space", "play / pause"}, {"n / p", "next / previous"}, {"← / →", "seek −5 / +5 sec"}, {"↑ / ↓", "volume up / down"}, {"m", "expand player"}, {"s", "toggle shuffle"}, {"r / R", "cycle repeat"}, {"T", "cycle sleep timer"}, {"/", "search Spotify"}, {"q / ctrl+c", "quit player"},
 	}},
 	{"MAIN · PLAYER FOCUS", []helpEntry{
 		{"← / →", "seek −5 / +5 sec"}, {"↑ / ↓", "volume up / down"},
 	}},
 	{"MAIN · NAVIGATION", []helpEntry{
-		{"tab / shift+tab", "next / previous panel"}, {"↑↓ / j k", "move selection"}, {"enter", "play / open selected"}, {"L", "open Library page"}, {"/", "search Spotify"}, {"PgUp/Dn", "page selection"},
+		{"tab / shift+tab", "next / previous panel"}, {"↑↓ / j k", "select in lists"}, {"enter", "play / open selected"}, {"L", "open Library page"}, {"/", "search Spotify"}, {"PgUp/Dn", "page selection"},
 	}},
 	{"MAIN · QUEUE FOCUS", []helpEntry{
 		{"delete", "remove selected track"}, {"ctrl+↑/↓", "move selected track"}, {"ctrl+x", "clear queue"},
 	}},
 	{"MAIN · SESSION", []helpEntry{
-		{"a", "account menu"}, {"S twice", "save queue as playlist"}, {"F5", "reload engine"}, {"F8", "configure Soloist"}, {"F12", "save playback report"}, {"H", "refresh Spotify history"}, {"q / ctrl+c", "quit player"},
+		{"a", "account menu"}, {"S twice", "save queue as playlist"}, {"F5", "reload engine"}, {"F6", "audio quality"}, {"F8", "configure Soloist"}, {"F12", "save playback report"}, {"H", "refresh Spotify history"}, {"q / ctrl+c", "quit player"},
 	}},
 	{"MAIN · APPEARANCE", []helpEntry{
 		{"v", "cycle visualizer"}, {"t", "cycle theme"}, {"m", "toggle mini player"}, {"T", "cycle sleep timer"},
 	}},
 	{"SEARCH · QUERY INPUT", []helpEntry{
-		{"type / backspace", "edit query"}, {"enter", "search / retry"}, {"tab / shift+tab", "next / previous type"}, {"↓ / ↑", "browse results"}, {"ctrl+p/n", "query history"}, {"F1", "help; ? stays text"}, {"esc / ctrl+c", "close search"},
+		{"type / backspace", "edit query"}, {"enter", "search / retry"}, {"tab / shift+tab", "next / previous type"}, {"↓ / ↑", "browse results"}, {"ctrl+p/n", "query history"}, {"F1", "help (? stays in query)"}, {"esc / ctrl+c", "close search"},
 	}},
 	{"SEARCH · RESULTS", []helpEntry{
-		{"↑↓ / j k", "select result"}, {"enter / dblclick", "play song / open item"}, {"e / E", "play selected item"}, {"a / A", "queue / play next"}, {"tab / shift+tab", "next / previous type"}, {"Home/End", "first / last result"}, {"PgUp/Dn", "page results"}, {"/", "edit query"}, {"L", "open matching Library"}, {"esc / ctrl+c", "close search"},
+		{"↑↓ / j k", "select result"}, {"enter / dblclick", "play song / open item"}, {"e / E", "play selected item"}, {"a / A", "queue / play next"}, {"tab / shift+tab", "next / previous type"}, {"Home/End", "first / last result"}, {"PgUp/Dn", "page results"}, {"ctrl+b/f", "page results"}, {"/", "edit query"}, {"L", "open matching Library"}, {"esc / ctrl+c", "close search"},
 	}},
 	{"LIBRARY · SONG LISTS", []helpEntry{
 		{"↑↓ / j k", "select song"}, {"enter", "play selected song"}, {"a / A", "queue / play next"}, {"PgUp/Dn", "page songs"}, {"/", "catalog search"}, {"esc / ctrl+c", "back to main"},
@@ -89,7 +89,7 @@ var helpSections = []helpSection{
 		{"↑↓←→ / h j k l", "select card / song"}, {"enter / click", "open item / play song"}, {"e / E", "play album / playlist"}, {"a / A", "queue / play next"}, {"tab / shift+tab", "artist songs / albums"}, {"Home/End", "first / last item"}, {"PgUp/Dn", "page items"}, {"r / R", "retry this page"}, {"/", "catalog search"}, {"esc / ctrl+c", "back"},
 	}},
 	{"STATS", []helpEntry{
-		{"tab / shift+tab", "track / artist / album"}, {"↑↓ / j k", "select ranking"}, {"enter", "play track / open item"}, {"e / E", "play selected album"}, {"←→ / h l", "change time range"}, {"Home/End", "first / last ranking"}, {"r / R", "refresh history"}, {"esc / ctrl+c", "back to main"},
+		{"tab / shift+tab", "track / artist / album"}, {"↑↓ / j k", "select ranking"}, {"enter", "play track / open item"}, {"e / E", "play selected album"}, {"←→ / h l", "change Lime time range"}, {"s / S", "switch Stats source"}, {"Home/End", "first / last ranking"}, {"r / R", "refresh history"}, {"esc / ctrl+c", "back to main"},
 	}},
 	{"DISCOVERY", []helpEntry{
 		{"↑↓ / j k", "select recommendation"}, {"enter", "open / play song"}, {"e / E", "play selection"}, {"a / A", "queue / play next"}, {"w / W", "confirm save to Library"}, {"P (in details)", "queue whole collection"}, {"q", "open queue manager"}, {"PgUp/Dn", "page recommendations"}, {"esc / ctrl+c", "back"},
@@ -104,7 +104,7 @@ var helpSections = []helpSection{
 		{"enter", "sign out"}, {"esc / other key", "close account"},
 	}},
 	{"HELP", []helpEntry{
-		{"F1 / ?", "toggle help"}, {"←→ / PgUp/Dn", "previous / next page"}, {"ctrl+b/f", "previous / next page"}, {"Home/End", "first / last page"}, {"mouse wheel", "previous / next page"}, {"esc / ctrl+c", "close help"},
+		{"F1 / ?", "toggle help"}, {"←→ / PgUp/Dn", "previous / next page"}, {"tab / shift+tab", "next / previous page"}, {"ctrl+b/f", "previous / next page"}, {"Home/End", "first / last page"}, {"mouse wheel", "previous / next page"}, {"esc / ctrl+c", "close help"},
 	}},
 }
 
