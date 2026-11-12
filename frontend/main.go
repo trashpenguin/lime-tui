@@ -143,15 +143,17 @@ type model struct {
 	selIdx      int
 
 	// recently played track history
-	recent             []engine.Track
-	recentSel          int
-	recentArtRequested map[string]bool
-	localRecent        []engine.Track
-	recentSource       string
-	recentSyncError    string
-	recentSyncBusy     bool
-	recentSyncToken    uint64
-	recentNextSync     time.Time
+	recent               []engine.Track
+	recentSel            int
+	recentArtRequested   map[string]bool
+	localRecent          []engine.Track
+	recentSource         string
+	recentSyncError      string
+	recentSyncBusy       bool
+	recentSyncOptedIn    bool
+	recentSyncToken      uint64
+	recentNextSync       time.Time
+	recentRateLimitDelay time.Duration
 
 	themeName string            // active theme, persisted across runs
 	cfg       map[string]string // parsed config.toml, read once at startup
@@ -525,6 +527,18 @@ func doCmd(f func() error) tea.Cmd {
 // Action notices never complete or fail a separate pending playback operation.
 type actionNoticeMsg string
 
+func queueEditCmd(eng *engine.Engine, action string, index int, notice string) tea.Cmd {
+	if eng == nil {
+		return nil
+	}
+	return func() tea.Msg {
+		if err := eng.EditQueue(action, index, 0); err != nil {
+			return actionNoticeMsg(err.Error())
+		}
+		return actionNoticeMsg(notice)
+	}
+}
+
 func actionCmd(f func() error) tea.Cmd {
 	return func() tea.Msg {
 		if err := f(); err != nil {
@@ -757,7 +771,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if retry := m.retryVisualizer(); retry != nil {
 			cmds = append(cmds, retry)
 		}
-		if m.phase == phaseReady && !m.recentSyncBusy && !now.Before(m.recentNextSync) {
+		if m.phase == phaseReady && m.recentSyncOptedIn && !m.recentSyncBusy && !now.Before(m.recentNextSync) {
 			cmds = append(cmds, m.syncSpotifyHistory())
 		}
 		if !now.Before(m.nextCoverCheck) {
@@ -795,7 +809,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds := []tea.Cmd{
 			m.fetchState(),
 			m.libraryCmd(),
-			m.syncSpotifyHistory(),
 		}
 		if m.statsOpen {
 			var artistCmd tea.Cmd
@@ -872,6 +885,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if d := newSt.Pos - m.st.Pos; d > -1500*time.Millisecond && d < 1500*time.Millisecond {
 					newSt.Pos = m.st.Pos
 				}
+			}
+			if len(m.st.Queue) == 0 && len(newSt.Queue) > 0 {
+				m.selIdx = max(0, min(newSt.QueuePos, len(newSt.Queue)-1))
 			}
 			m.st = newSt
 			if m.libraryPlayRequested && !m.libraryActionBusy && m.st.Err != "" {
@@ -1096,11 +1112,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		next, command := m.updateMouse(msg)
 		return withVisibleArtwork(next, command)
 	case tea.KeyMsg:
+		if msg.Type == tea.KeyF12 && (m.phase == phaseReady || m.phase == phaseFail) {
+			return m, playbackSupportCmd(m.eng, playbackIssueCode(m.st.Err, m.status, m.note))
+		}
 		if m.audioQualityOpen {
 			return m.updateAudioQuality(msg)
-		}
-		if msg.Type == tea.KeyF12 && m.phase == phaseReady {
-			return m, playbackSupportCmd(m.eng)
 		}
 		if m.helpOpen {
 			return m.updateHelp(msg)
@@ -1293,10 +1309,17 @@ func (m model) updateKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			selection = m.librarySelection
 		}
 		return m.openLibrarySelection(selection)
+	case "g":
+		if m.focus == focusQueue && len(m.st.Queue) > 0 {
+			m.selIdx = m.st.QueuePos
+		}
+	case "ctrl+z":
+		if m.focus == focusQueue && m.st.QueueCanUndo {
+			return m, queueEditCmd(eng, "undo", 0, "Queue edit undone")
+		}
 	case "delete":
-		if m.focus == focusQueue {
-			index := m.selIdx
-			return m, actionCmd(func() error { return eng.EditQueue("remove", index, 0) })
+		if m.focus == focusQueue && m.selIdx >= 0 && m.selIdx < len(m.st.Queue) {
+			return m, queueEditCmd(eng, "remove", m.selIdx, "Track removed · Ctrl+Z undo")
 		}
 	case "ctrl+up", "ctrl+down":
 		if m.focus == focusQueue {
@@ -1312,7 +1335,7 @@ func (m model) updateKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	case "ctrl+x", "ctrl+delete":
 		if m.focus == focusQueue && len(m.st.Queue) > 0 {
-			return m, actionCmd(func() error { return eng.EditQueue("clear", 0, 0) })
+			return m, queueEditCmd(eng, "clear", 0, "Queue cleared · Ctrl+Z undo")
 		}
 	case "m":
 		m.mini = !m.mini
@@ -1491,7 +1514,11 @@ func (m model) queuePanel(w, h int) string {
 	}
 	q := m.st.Queue
 	if len(q) == 0 {
-		empty := lipgloss.NewStyle().Foreground(fgFaint).Render(" queue is empty — press / to search")
+		message := " queue is empty — press / to search"
+		if m.st.QueueCanUndo {
+			message = " queue is empty · Ctrl+Z undo"
+		}
+		empty := lipgloss.NewStyle().Foreground(fgFaint).Render(message)
 		return pad(empty, w)
 	}
 	start := max(0, min(m.selIdx-rows/2, len(q)-rows))
@@ -1579,6 +1606,8 @@ func (m model) recentListPanel(w, h int) string {
 		}
 	case m.recentSource == "spotify":
 		status = "H refresh Spotify"
+	case !m.recentSyncOptedIn:
+		status = "H load Spotify history"
 	}
 	start, count := m.recentWindow(rows)
 	var lines []string
@@ -1983,8 +2012,33 @@ func (m model) transportPanel(w int) string {
 	// there may be no room for them. pad() truncates silently, which is how the
 	// old line lost its tail without anyone noticing; drop to the short form
 	// instead, and then to nothing, so whatever is shown is shown whole.
-	if !m.sleepUntil.IsZero() {
+	if issue := playbackIssueCode(m.st.Err, m.note); issue != "" {
+		message := m.st.Err
+		if playbackIssueCode(message) == "" {
+			message = m.note
+		}
+		if lipgloss.Width(message) > w {
+			switch issue {
+			case "soloist_waiting_for_connect":
+				message = "Waiting for Spotify Connect · Select Lime Soloist in Spotify"
+			case "soloist_build_expired":
+				message = "Soloist build expired · Download an update and run Setup Soloist"
+			case "soloist_command_rejected":
+				message = "Soloist rejected playback · Select Lime Soloist and retry"
+			}
+		}
+		l1, hints = pink.Render(message), "F12 report "
+	} else if !m.sleepUntil.IsZero() {
 		l1 += dim.Render(" | sleep " + time.Until(m.sleepUntil).Round(time.Second).String())
+	}
+	if m.st.PlaybackDevice == "external" {
+		resume := "Space to resume playback here"
+		if m.st.PlaybackEngine == "native" {
+			resume = "F5 reconnect · Space to resume playback here"
+		}
+		l1 = pink.Render(resume)
+	} else if m.st.PlaybackDevice == "disconnected" && playbackIssueCode(m.st.Err, m.note) == "" {
+		l1 = pink.Render("Playback disconnected · F5 reconnect")
 	}
 	hints = fitHints(hints, w-lipgloss.Width(l1)-1)
 	r1 := faint.Render(hints)
@@ -2041,7 +2095,10 @@ func (m model) bootView() string {
 	var line string
 	if m.phase == phaseFail {
 		line = lipgloss.NewStyle().Foreground(accent).Render("✕ "+m.status) +
-			lipgloss.NewStyle().Foreground(fgFaint).Render("  ·  R retry · q quit")
+			"\n" + lipgloss.NewStyle().Foreground(fgFaint).Render("R retry · F12 report · q quit")
+		if m.note != "" {
+			line += "\n" + lipgloss.NewStyle().Foreground(fgDim).Render(m.note)
+		}
 	} else {
 		sp := []rune("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏")
 		line = lipgloss.NewStyle().Foreground(fgDim).

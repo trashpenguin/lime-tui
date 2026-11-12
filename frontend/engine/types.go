@@ -9,7 +9,8 @@ type Track struct {
 	Art                      string
 }
 type State struct {
-	PlaybackEngine                            string
+	PlaybackEngine, PlaybackDevice            string
+	QueueCanUndo                              bool
 	Authed, Playing, Initializing, Recovering bool
 	Pos, Dur                                  time.Duration
 	Volume                                    int

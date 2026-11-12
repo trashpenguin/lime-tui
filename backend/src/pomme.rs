@@ -116,6 +116,11 @@ struct Track {
   art: String,
 }
 
+enum QueueUndo {
+  Remove { track: Track, index: usize, position: u64 },
+  Clear { tracks: Vec<Track>, index: usize, position: u64 },
+}
+
 #[derive(Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 struct Queue {
@@ -151,6 +156,12 @@ struct Queue {
   retry_pending: bool,
   #[serde(skip)]
   play_intent: bool,
+  #[serde(skip)]
+  undo: Option<QueueUndo>,
+  #[serde(skip)]
+  external_device: bool,
+  #[serde(skip)]
+  soloist_resume_at: Option<u64>,
 }
 
 impl Queue {
@@ -186,6 +197,7 @@ impl Queue {
       if self.tracks.len() == MAX_QUEUE {
         self.tracks.remove(0);
       }
+      self.undo = None;
       self.tracks.push(Track {
         id: id.into(),
         title: "Loading Spotify track…".into(),
@@ -216,6 +228,7 @@ impl Queue {
     self.loading = false;
     self.retry_pending = false;
     self.play_intent = false;
+    self.soloist_resume_at = None;
   }
   fn owns_event(&self, uri: &str, request: u64) -> bool {
     self.current_uri().as_deref() == Some(uri)
@@ -257,6 +270,9 @@ impl Queue {
     } else {
       self.tracks.len()
     };
+    if !tracks.is_empty() {
+      self.undo = None;
+    }
     self.tracks.splice(at..at, tracks);
     Ok(())
   }
@@ -269,6 +285,7 @@ struct Backend {
   // Commands that change queue ownership are serialized. Catalog calls and
   // state polling remain independent so a slow search cannot stall transport.
   commands: Mutex<()>,
+  persistence: Mutex<()>,
   login: Mutex<Option<credentials::PendingLogin>>,
   artist_cursors: Mutex<std::collections::BTreeMap<usize, String>>,
 }
@@ -297,6 +314,7 @@ impl Backend {
       });
     queue.tracks.truncate(MAX_QUEUE);
     queue.index = queue.index.min(queue.tracks.len().saturating_sub(1));
+    queue.position = queue.position_ms();
     queue.volume = queue.volume.min(100);
     queue.repeat %= 3;
     Self {
@@ -304,12 +322,14 @@ impl Backend {
       soloist: Mutex::new(None),
       player: Mutex::new(None),
       commands: Mutex::new(()),
+      persistence: Mutex::new(()),
       login: Mutex::new(None),
       artist_cursors: Mutex::new(std::collections::BTreeMap::from([(0, String::new())])),
     }
   }
 
   async fn save(&self) -> Result<()> {
+    let _guard = self.persistence.lock().await;
     let path = state_path()?;
     crate::core::paths::ensure_private_dir(path.parent().context("No state parent")?)?;
     let mut q = self.queue.lock().await;
@@ -432,6 +452,7 @@ impl Backend {
             && (q.play_intent || q.error.is_empty())
           {
             q.request_id = Some(play_request_id);
+            q.external_device = false;
             q.reset_clock(position_ms as u64, true);
             q.error.clear();
           }
@@ -539,7 +560,7 @@ impl Backend {
                   return;
                 }
                 drop(q);
-                if let Err(error) = backend.load_index(&active, index, true).await {
+                if let Err(error) = backend.load_index(&active, index, true, 0).await {
                   backend.playback_error(error).await;
                 }
               });
@@ -570,7 +591,7 @@ impl Backend {
           }
           if let Some(index) = q.next_index(true) {
             drop(q);
-            if let Err(error) = self.load_index(&player, index, false).await {
+            if let Err(error) = self.load_index(&player, index, false, 0).await {
               self.playback_error(error).await;
             }
           }
@@ -604,7 +625,7 @@ impl Backend {
           ..
         } => {
           q.freeze();
-          q.error="Spotify playback moved to another device. Press F5 to reconnect if you want to play here.".into();
+          q.external_device = true;
         }
         _ => {}
       }
@@ -619,6 +640,10 @@ impl Backend {
   }
 
   async fn start_index(self: &Arc<Self>, index: usize) -> Result<()> {
+    self.start_index_at(index, 0).await
+  }
+
+  async fn start_index_at(self: &Arc<Self>, index: usize, position: u64) -> Result<()> {
     {
       let mut q = self.queue.lock().await;
       if index >= q.tracks.len() {
@@ -626,18 +651,19 @@ impl Backend {
       }
       q.freeze();
       q.index = index;
-      q.position = 0;
+      q.position = position.min(q.tracks[index].dur_ms);
       q.loading = true;
       q.error.clear();
-      q.trace.push("request_play", None, Some(true), 0);
+      let position = q.position;
+      q.trace.push("request_play", None, Some(true), position);
     }
     let result = async {
       let official = self.soloist.lock().await.clone();
       if let Some(player) = official {
-        soloist::load(self, &player, index).await
+        soloist::load(self, &player, index, position).await
       } else {
         let player = self.ensure_player().await?;
-        self.load_index(&player, index, false).await
+        self.load_index(&player, index, false, position).await
       }
     }
     .await;
@@ -655,6 +681,7 @@ impl Backend {
     player: &Arc<StreamingPlayer>,
     index: usize,
     retry: bool,
+    position: u64,
   ) -> Result<()> {
     let mut q = self.queue.lock().await;
     if index >= q.tracks.len() {
@@ -662,7 +689,7 @@ impl Backend {
     }
     q.freeze();
     q.index = index;
-    q.position = 0;
+    q.position = position.min(q.tracks[index].dur_ms);
     q.loading = true;
     q.play_intent = true;
     q.retry_used = retry;
@@ -675,7 +702,7 @@ impl Backend {
     q.error.clear();
     let uri = q.current_uri().unwrap();
     player.activate();
-    q.request_id = player.play_uri_tracked(&uri).await?;
+    q.request_id = player.play_uri_tracked_at(&uri, q.position.min(u32::MAX as u64) as u32).await?;
     let request = q.request_id;
     q.trace.push(
       if retry { "retry_start" } else { "load_sent" },
@@ -708,7 +735,10 @@ impl Backend {
             "playing": q.playing, "initializing": q.loading || recovering, "recovering": recovering, "playbackEngine": if official.is_some() {"soloist"} else {"native"}, "posMs": q.position_ms(),
             "durMs": q.tracks.get(q.index).map(|t| t.dur_ms).unwrap_or(0),
             "volume": q.volume, "shuffle": q.shuffle, "repeat": q.repeat,
-            "now": q.tracks.get(q.index), "queue": q.tracks, "queuePos": q.index, "err": q.error})
+            "now": q.tracks.get(q.index), "queue": q.tracks, "queuePos": q.index, "queueCanUndo": q.undo.is_some(),
+            "playbackDevice": if q.external_device {"external"} else if official.as_ref().is_some_and(|p| !p.connected.load(std::sync::atomic::Ordering::Acquire))
+              || player.as_ref().is_some_and(|p| !p.is_connected() && !recovering) {"disconnected"}
+              else if q.playing {"local"} else {"idle"}, "err": q.error})
   }
 
   async fn handle(self: &Arc<Self>, method: &str, p: &Value) -> Result<Value> {
@@ -963,6 +993,7 @@ impl Backend {
           let mut q = self.queue.lock().await;
           q.freeze();
           q.tracks = tracks;
+          q.undo = None;
           q.index = 0;
           q.position = 0;
         }
@@ -1019,22 +1050,20 @@ impl Backend {
         } else {
           let index = q.index;
           let position = q.position;
-          let restart = !q.error.is_empty() || (official.is_some() && !q.soloist_track_confirmed);
+          let restart = q.external_device || !q.error.is_empty()
+            || if official.is_some() { !q.soloist_track_confirmed } else { q.request_id.is_none() };
           q.play_intent = true;
           drop(q);
           let existing = self.player.lock().await.as_ref().cloned();
           if restart {
-            self.start_index(index).await?;
+            self.start_index_at(index, position).await?;
           } else if let Some(player) = official.as_ref() {
             player.send(soloist::command("activate"))?;
             player.send(soloist::command("play"))?;
           } else if let Some(player) = existing {
             player.play();
           } else {
-            self.start_index(index).await?;
-            if let Some(player) = self.player.lock().await.as_ref() {
-              player.seek(position.min(u32::MAX as u64) as u32);
-            }
+            self.start_index_at(index, position).await?;
           }
         }
       }
@@ -1066,7 +1095,10 @@ impl Backend {
         q.shuffle = !q.shuffle;
         if q.shuffle {
           let start = (q.index + 1).min(q.tracks.len());
-          q.tracks[start..].shuffle(&mut rand::rng());
+          if q.tracks.len() - start > 1 {
+            q.undo = None;
+            q.tracks[start..].shuffle(&mut rand::rng());
+          }
         }
       }
       "cycle_repeat" => {
@@ -1078,49 +1110,77 @@ impl Backend {
         let index = number(p, "index") as usize;
         let target = number(p, "target") as usize;
         match text(p, "action") {
-          "clear" => {
-            q.freeze();
-            q.tracks.clear();
-            q.index = 0;
-            q.position = 0;
-            drop(q);
-            if let Some(player) = official.as_ref() {
-              player.send(soloist::command("pause"))?;
-            } else if let Some(player) = self.player.lock().await.as_ref() {
-              player.stop();
-            }
-          }
-          "remove" => {
-            if index >= q.tracks.len() {
+          "clear" | "remove" => {
+            let clear = text(p, "action") == "clear";
+            if q.tracks.is_empty() || (!clear && index >= q.tracks.len()) {
               bail!("Queue position is out of range");
             }
-            let current = index == q.index;
+            let current = clear || index == q.index;
             let playing = q.playing;
-            q.tracks.remove(index);
-            if index < q.index {
-              q.index -= 1;
+            let position = q.position_ms();
+            if current && (playing || q.loading) {
+              if let Some(player) = official.as_ref() {
+                player.send(soloist::command("pause"))?;
+              }
             }
-            q.index = q.index.min(q.tracks.len().saturating_sub(1));
             if current {
               q.freeze();
+              q.request_id = None;
+              q.soloist_track_confirmed = false;
+              q.generation = q.generation.wrapping_add(1);
               q.position = 0;
+            }
+            if clear {
+              q.undo = Some(QueueUndo::Clear {
+                tracks: std::mem::take(&mut q.tracks),
+                index: q.index,
+                position,
+              });
+              q.index = 0;
+            } else {
+              let track = q.tracks.remove(index);
+              q.undo = Some(QueueUndo::Remove { track, index, position });
+              if index < q.index {
+                q.index -= 1;
+              }
+              q.index = q.index.min(q.tracks.len().saturating_sub(1));
+            }
+            if current {
               let next = q.index;
               let empty = q.tracks.is_empty();
               drop(q);
-              if let Some(player) = official.as_ref() {
-                player.send(soloist::command("pause"))?;
-              } else if let Some(player) = self.player.lock().await.as_ref() {
-                player.stop();
+              if official.is_none() {
+                if let Some(player) = self.player.lock().await.as_ref() {
+                  player.stop();
+                }
               }
+              self.save().await?;
               if !empty && playing {
                 self.start_index(next).await?;
               }
             }
           }
+          "undo" => match q.undo.take().context("No queue edit to undo")? {
+            QueueUndo::Remove { track, index, position } => {
+              if q.tracks.is_empty() {
+                q.index = 0;
+                q.position = position.min(track.dur_ms);
+              } else if index <= q.index {
+                q.index += 1;
+              }
+              q.tracks.insert(index, track);
+            }
+            QueueUndo::Clear { tracks, index, position } => {
+              q.tracks = tracks;
+              q.index = index;
+              q.position = position;
+            }
+          },
           "move" => {
             if index >= q.tracks.len() || target >= q.tracks.len() {
               bail!("Queue position is out of range");
             }
+            q.undo = None;
             let track = q.tracks.remove(index);
             q.tracks.insert(target, track);
             q.index = if q.index == index {
@@ -1518,7 +1578,8 @@ pub async fn run() -> Result<()> {
     }
   });
   let mut requests = tokio::task::JoinSet::new();
-  let mut checkpoint = tokio::time::interval(Duration::from_secs(15));
+  let mut checkpoint = tokio::time::interval(Duration::from_secs(5));
+  let mut shutdown_id = None;
   loop {
     let line = tokio::select! {
         result=input_rx.recv()=>match result {Some(Ok(line))=>line,Some(Err(error))=>return Err(error),None=>break},
@@ -1535,7 +1596,7 @@ pub async fn run() -> Result<()> {
       }
     };
     if request.method == "shutdown" {
-      out_tx.send(json!({"id":request.id,"result":{}})).await?;
+      shutdown_id = Some(request.id);
       break;
     }
     let permit = match permits.clone().try_acquire_owned() {
@@ -1569,7 +1630,15 @@ pub async fn run() -> Result<()> {
   if let Some(player) = backend.player.lock().await.take() {
     player.shutdown();
   }
-  let _ = backend.save().await;
+  let saved = backend.save().await;
+  if let Some(id) = shutdown_id {
+    let reply = if saved.is_ok() {
+      json!({"id":id,"result":{}})
+    } else {
+      json!({"id":id,"error":"Could not save the Lime queue"})
+    };
+    let _ = out_tx.send(reply).await;
+  }
   drop(out_tx);
   // Runtime teardown cancels any in-flight network/login tasks on owner EOF.
   tokio::time::timeout(Duration::from_secs(1), writer)

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/k1y0miiii/applemusic-tui/engine"
@@ -16,9 +17,26 @@ type playbackReportMsg struct {
 	traceAvailable bool
 }
 
-func playbackSupportCmd(eng *engine.Engine) tea.Cmd {
+func playbackIssueCode(messages ...string) string {
+	for _, message := range messages {
+		switch {
+		case strings.HasPrefix(message, "Waiting for Spotify Connect."):
+			return "soloist_waiting_for_connect"
+		case strings.HasPrefix(message, "Soloist build expired."):
+			return "soloist_build_expired"
+		case strings.HasPrefix(message, "Soloist rejected playback."):
+			return "soloist_command_rejected"
+		}
+	}
+	return ""
+}
+
+func playbackSupportCmd(eng *engine.Engine, issue string) tea.Cmd {
 	return func() tea.Msg {
 		report := systemDiagnostics()
+		if issue != "" {
+			report["playback_issue"] = issue
+		}
 		available := false
 		if eng != nil {
 			if trace, err := eng.PlaybackDiagnostics(); err == nil {

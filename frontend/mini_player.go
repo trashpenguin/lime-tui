@@ -15,6 +15,10 @@ func (m model) miniState() string {
 		return "RECONNECTING"
 	case m.audioInitializing():
 		return "INITIALIZING"
+	case m.st.PlaybackDevice == "external":
+		return "OTHER SPOTIFY DEVICE"
+	case m.st.PlaybackDevice == "disconnected":
+		return "DISCONNECTED"
 	case m.initFailed:
 		return "PLAYBACK ERROR"
 	case m.loading != "":
@@ -22,7 +26,7 @@ func (m model) miniState() string {
 	case m.st.Now.Title == "":
 		return "READY"
 	case m.st.Playing:
-		return "PLAYING"
+		return "PLAYING ON THIS PC"
 	default:
 		return "PAUSED"
 	}

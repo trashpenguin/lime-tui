@@ -25,8 +25,11 @@ func (m *model) clearSpotifyPersonalData() error {
 	m.recentSource = ""
 	m.recentSyncError = ""
 	m.recentSyncBusy = false
+	m.recentSyncOptedIn = false
+	m.statsSpotify = false
 	m.recentSyncToken++
 	m.recentNextSync = time.Time{}
+	m.recentRateLimitDelay = 0
 	m.recentArtRequested = nil
 	m.sRes = engine.SearchResults{}
 	m.statsRes = engine.SearchResults{}

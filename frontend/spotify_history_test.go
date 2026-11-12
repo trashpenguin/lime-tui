@@ -146,3 +146,20 @@ func TestRecentPanelShowsSpotifyRetryWithLocalTracks(t *testing.T) {
 		t.Fatal("manual refresh bypassed Spotify cooldown")
 	}
 }
+
+func TestSpotifyHistoryRepeatedRateLimitsIncreaseRetryDelay(t *testing.T) {
+	m := mouseModel(100, 34, 1)
+	msg := spotifyHistoryMsg{err: errors.New("Spotify history rate-limited"), retryAfter: time.Minute}
+	for _, want := range []time.Duration{2, 4, 8, 15, 15} {
+		next, _ := m.applySpotifyHistory(msg)
+		m = next.(model)
+		if got := time.Until(m.recentNextSync).Round(time.Second); got != want*time.Minute {
+			t.Fatalf("retry delay = %v, want %v minutes", got, want)
+		}
+	}
+	next, _ := m.applySpotifyHistory(spotifyHistoryMsg{})
+	m = next.(model)
+	if m.recentRateLimitDelay != 0 || m.recentSource != "spotify" {
+		t.Fatal("successful history fetch did not reset the retry delay")
+	}
+}

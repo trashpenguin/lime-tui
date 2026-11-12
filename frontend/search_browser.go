@@ -70,6 +70,14 @@ func (m model) applyCatalogSearch(msg catalogSearchMsg) (tea.Model, tea.Cmd) {
 	if m.sTab == 0 {
 		m.sTab = 1
 	}
+	if len(m.curList()) == 0 {
+		for tab, tracks := range [][]engine.Track{msg.res.Songs, msg.res.Albums, msg.res.Playlists, msg.res.Artists} {
+			if len(tracks) > 0 {
+				m.sTab = tab + 1
+				break
+			}
+		}
+	}
 	return m.requestSearchArtwork()
 }
 func (m model) activateSearchItem(playAll bool) (tea.Model, tea.Cmd) {

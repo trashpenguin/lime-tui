@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -17,5 +18,11 @@ func TestAudioQualitySavesPreferenceForNextLaunch(t *testing.T) {
 	}
 	if !m.audioQualityOpen || savedAudioQuality() != 2 || m.audioQualityNotice != "Saved. Restart Lime to apply." {
 		t.Fatal("the selected quality was not saved for the next launch")
+	}
+	view := m.audioQualityView()
+	for _, label := range []string{"320 kbps · saved", "160 kbps · used this session", "Actual stream format: unavailable"} {
+		if !strings.Contains(view, label) {
+			t.Errorf("quality view missing %q", label)
+		}
 	}
 }

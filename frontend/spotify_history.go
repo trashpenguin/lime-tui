@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -15,6 +16,7 @@ type spotifyHistoryMsg struct {
 }
 
 func (m *model) syncSpotifyHistory() tea.Cmd {
+	m.recentSyncOptedIn = true
 	if m.eng == nil || m.recentSyncBusy || time.Now().Before(m.recentNextSync) {
 		return nil
 	}
@@ -33,6 +35,12 @@ func (m model) applySpotifyHistory(msg spotifyHistoryMsg) (tea.Model, tea.Cmd) {
 	}
 	m.recentSyncBusy = false
 	wait := max(time.Minute, msg.retryAfter)
+	if msg.err != nil && strings.HasPrefix(msg.err.Error(), "Spotify history rate-limited") {
+		m.recentRateLimitDelay = min(15*time.Minute, max(2*time.Minute, 2*m.recentRateLimitDelay))
+		wait = max(wait, m.recentRateLimitDelay)
+	} else if msg.err == nil {
+		m.recentRateLimitDelay = 0
+	}
 	m.recentNextSync = time.Now().Add(wait)
 	previous := m.recentSource
 	selectedID := ""

@@ -41,8 +41,16 @@ func (m model) themeButtonX() int { return m.w - 1 - lipgloss.Width(m.themeButto
 func (m model) headerBar() string {
 	width := m.w - 2
 	button := lipgloss.NewStyle().Foreground(accentHi).Background(selBg).Bold(true).Render(m.themeButtonLabel())
-	left := lipgloss.NewStyle().Foreground(accentHi).Bold(true).Render(" LIME TUI ") +
-		lipgloss.NewStyle().Foreground(fgFaint).Render(" / Search ") + lipgloss.NewStyle().Foreground(fgBright).Render(m.sQuery) +
+	left := lipgloss.NewStyle().Foreground(accentHi).Bold(true).Render(" LIME TUI ")
+	switch m.st.PlaybackDevice {
+	case "local":
+		left += "· Playing on this PC "
+	case "external":
+		left += "· Playing on another Spotify device "
+	case "disconnected":
+		left += "· Disconnected "
+	}
+	left += lipgloss.NewStyle().Foreground(fgFaint).Render(" / Search ") + lipgloss.NewStyle().Foreground(fgBright).Render(m.sQuery) +
 		lipgloss.NewStyle().Foreground(fgFaint).Render("  Tab focus · l lyrics")
 	return lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(borderDim).Width(width).
 		Render(pad(left, max(0, width-lipgloss.Width(button)-1)) + " " + button)

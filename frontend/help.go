@@ -68,7 +68,7 @@ var helpSections = []helpSection{
 		{"tab / shift+tab", "next / previous panel"}, {"↑↓ / j k", "select in lists"}, {"enter", "play / open selected"}, {"L", "open Library page"}, {"/", "search Spotify"}, {"PgUp/Dn", "page selection"},
 	}},
 	{"MAIN · QUEUE FOCUS", []helpEntry{
-		{"delete", "remove selected track"}, {"ctrl+↑/↓", "move selected track"}, {"ctrl+x", "clear queue"},
+		{"delete", "remove selected track"}, {"ctrl+↑/↓", "move selected track"}, {"ctrl+x", "clear queue"}, {"ctrl+z", "undo remove / clear"}, {"g", "jump to current track"},
 	}},
 	{"MAIN · SESSION", []helpEntry{
 		{"a", "account menu"}, {"S twice", "save queue as playlist"}, {"F5", "reload engine"}, {"F6", "audio quality"}, {"F8", "configure Soloist"}, {"F12", "save playback report"}, {"H", "refresh Spotify history"}, {"q / ctrl+c", "quit player"},
@@ -98,7 +98,7 @@ var helpSections = []helpSection{
 		{"y / Y / enter", "confirm Library save"}, {"n / N / esc", "cancel save"},
 	}},
 	{"QUEUE MANAGER", []helpEntry{
-		{"↑↓ / j k", "select queue track"}, {"enter", "play selected track"}, {"del / backspace", "remove selected track"}, {"ctrl+↑/↓", "move selected track"}, {"ctrl+x", "clear queue"}, {"PgUp/Dn", "page queue"}, {"esc / q / ctrl+c", "back"},
+		{"↑↓ / j k", "select queue track"}, {"enter", "play selected track"}, {"del / backspace", "remove selected track"}, {"ctrl+↑/↓", "move selected track"}, {"ctrl+x", "clear queue"}, {"ctrl+z", "undo remove / clear"}, {"g", "jump to current track"}, {"PgUp/Dn", "page queue"}, {"esc / q / ctrl+c", "back"},
 	}},
 	{"ACCOUNT", []helpEntry{
 		{"enter", "sign out"}, {"esc / other key", "close account"},

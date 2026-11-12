@@ -88,7 +88,7 @@ enum DeferredPlayerCommand {
   RepeatTrack(bool),
   Activate,
   Transfer(Option<TransferRequest>),
-  DirectLoad(SpotifyUri, bool),
+  DirectLoad(SpotifyUri, bool, u32),
 }
 
 impl DeferredPlayerCommand {
@@ -126,8 +126,8 @@ impl DeferredPlayerCommand {
       Self::RepeatTrack(repeat) => spirc.repeat_track(repeat),
       Self::Activate => spirc.activate(),
       Self::Transfer(request) => spirc.transfer(request),
-      Self::DirectLoad(uri, start_playing) => {
-        player.load(uri, start_playing, 0);
+      Self::DirectLoad(uri, start_playing, position_ms) => {
+        player.load(uri, start_playing, position_ms);
         Ok(())
       }
     }
@@ -911,6 +911,10 @@ impl StreamingPlayer {
 
   /// Preserve the decoder request identity for embedders that own their queue.
   pub async fn play_uri_tracked(&self, uri: &str) -> Result<Option<u64>> {
+    self.play_uri_tracked_at(uri, 0).await
+  }
+
+  pub async fn play_uri_tracked_at(&self, uri: &str, position_ms: u32) -> Result<Option<u64>> {
     let spotify_uri =
       SpotifyUri::from_uri(uri).map_err(|e| anyhow!("Invalid Spotify URI '{}': {:?}", uri, e))?;
 
@@ -920,11 +924,11 @@ impl StreamingPlayer {
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
       match router.mode {
-        SpircCommandMode::Connected => Some(self.player.load(spotify_uri, true, 0)),
+        SpircCommandMode::Connected => Some(self.player.load(spotify_uri, true, position_ms)),
         SpircCommandMode::Reconnecting => {
           router
             .deferred
-            .push(DeferredPlayerCommand::DirectLoad(spotify_uri, true));
+            .push(DeferredPlayerCommand::DirectLoad(spotify_uri, true, position_ms));
           None
         }
         SpircCommandMode::Failed => return Err(anyhow!("Native streaming connection failed")),
@@ -935,7 +939,7 @@ impl StreamingPlayer {
     let mut state = self.state.lock().await;
     state.is_playing = true;
     state.track_id = Some(uri.to_string());
-    state.position_ms = 0;
+    state.position_ms = position_ms;
 
     Ok(request)
   }
@@ -946,7 +950,7 @@ impl StreamingPlayer {
     let spotify_uri =
       SpotifyUri::from_uri(uri).map_err(|e| anyhow!("Invalid Spotify URI '{}': {:?}", uri, e))?;
 
-    self.route_command(DeferredPlayerCommand::DirectLoad(spotify_uri, false))?;
+    self.route_command(DeferredPlayerCommand::DirectLoad(spotify_uri, false, 0))?;
 
     let mut state = self.state.lock().await;
     state.is_playing = false;

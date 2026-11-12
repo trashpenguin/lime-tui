@@ -186,12 +186,17 @@ func (m model) updateQueueManager(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.note, m.noteAt = "playing: "+m.st.Queue[i].Title, m.t
 			return m, doCmd(func() error { return eng.JumpTo(i) })
 		}
+	case "g":
+		if len(m.st.Queue) > 0 {
+			m.selIdx = m.st.QueuePos
+		}
+	case "ctrl+z":
+		if m.st.QueueCanUndo {
+			return m, queueEditCmd(eng, "undo", 0, "Queue edit undone")
+		}
 	case "delete", "backspace":
-		if m.selIdx < len(m.st.Queue) {
-			track := m.st.Queue[m.selIdx]
-			i := m.selIdx
-			m.note, m.noteAt = "removed from queue: "+track.Title, m.t
-			return m, actionCmd(func() error { return eng.EditQueue("remove", i, 0) })
+		if m.selIdx >= 0 && m.selIdx < len(m.st.Queue) {
+			return m, queueEditCmd(eng, "remove", m.selIdx, "Track removed · Ctrl+Z undo")
 		}
 	case "ctrl+up", "ctrl+down":
 		if m.selIdx < len(m.st.Queue) {
@@ -208,9 +213,7 @@ func (m model) updateQueueManager(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	case "ctrl+x", "ctrl+delete":
 		if len(m.st.Queue) > 0 {
-			m.selIdx = 0
-			m.note, m.noteAt = "cleared queue", m.t
-			return m, actionCmd(func() error { return eng.EditQueue("clear", 0, 0) })
+			return m, queueEditCmd(eng, "clear", 0, "Queue cleared · Ctrl+Z undo")
 		}
 	}
 	return m, nil
@@ -224,9 +227,15 @@ func (m model) queueManagerView() string {
 		title += fmt.Sprintf(" · NOW %d/%d", m.st.QueuePos+1, len(m.st.Queue))
 	}
 	body := m.queuePanel(iw, rows+1)
-	hint := " ↑/↓ select · enter play · del remove · ctrl+↑/↓ reorder · ctrl+x clear · esc/q back"
+	hint := " ↑↓ select · g now playing · ↵ play · del remove · ctrl+↑/↓ reorder · Ctrl+X clear · Esc"
 	if lipgloss.Width(hint) > iw {
-		hint = " ↑↓ select · ↵ play · Del remove · Ctrl+X clear · Esc"
+		hint = " ↑↓ select · g now playing · ↵ play · del remove · Ctrl+X clear · Esc"
+	}
+	if m.st.QueueCanUndo {
+		hint = " Ctrl+Z undo · g now playing · ↑↓ select · Esc back"
+	}
+	if m.note != "" {
+		hint = " " + m.note
 	}
 	if m.audioInitializing() {
 		hint = " Audio initializing… · Esc back · F1 controls"

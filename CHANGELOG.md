@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.2.0 — 2026-11-12
+
+- Restore the queue, current track, and saved position paused. Checkpoint playback every five seconds and restore the position when resuming.
+- Add Ctrl+Z to undo the last queue removal or clear and g to jump to the current track.
+- Show whether playback is on this PC, on another Spotify device, or disconnected.
+- Open a populated search category when the selected category is empty. Preserve the query, selection, and scroll position when returning from album or artist details.
+- Distinguish Soloist pairing, build expiry, and rejected playback. Allow F12 reports after startup errors.
+- Start with local Stats. Fetch Spotify history on request and increase the delay after repeated rate limits.
+- Show the saved and current-session audio quality preferences in F6 and indicate when a restart is needed.
+
 ## v1.1.0 — 2026-11-12
 
 - Add Spotify Recent to Stats. Press s to switch between Lime history and rankings from up to 50 recent Spotify plays. Listening time and streaks use local history.

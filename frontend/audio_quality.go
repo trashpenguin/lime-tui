@@ -61,7 +61,7 @@ func (m model) audioQualityView() string {
 	width := max(1, min(64, m.w-4))
 	faint := lipgloss.NewStyle().Foreground(fgFaint)
 	active := lipgloss.NewStyle().Foreground(accentHi).Bold(true)
-	lines := []string{}
+	lines := []string{faint.Render("Actual stream format: unavailable from engine"), ""}
 	if m.soloistAudioQuality() {
 		lines = append(lines,
 			active.Render("Spotify Soloist · Spotify Connect"),
@@ -70,10 +70,14 @@ func (m model) audioQualityView() string {
 			"if Spotify offers it for your Premium account.",
 			"", faint.Render("Esc back"))
 	} else {
+		saved := savedAudioQuality()
 		for i, quality := range nativeAudioQualities {
 			label := "  " + quality.label
+			if i == saved {
+				label += " · saved"
+			}
 			if quality.bitrate == os.Getenv(nativeBitrateEnv) {
-				label += " · active preference"
+				label += " · used this session"
 			}
 			if i == m.audioQualitySel {
 				label = active.Render("› " + label[2:])
@@ -84,6 +88,8 @@ func (m model) audioQualityView() string {
 			faint.Render("↑↓ select · Enter save · Esc back"))
 		if m.audioQualityNotice != "" {
 			lines = append(lines, m.audioQualityNotice)
+		} else if nativeAudioQualities[saved].bitrate != os.Getenv(nativeBitrateEnv) {
+			lines = append(lines, "Restart Lime to apply the saved preference.")
 		}
 	}
 	for i, line := range lines {

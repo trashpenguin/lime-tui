@@ -248,8 +248,18 @@ func TestQueueManagerRemovalAndReorderingControls(t *testing.T) {
 		t.Fatalf("ctrl+down did not move queue selection: sel=%d cmd=%v", updated.(model).selIdx, cmd != nil)
 	}
 	updated, cmd = updated.(model).Update(tea.KeyMsg{Type: tea.KeyDelete})
-	if cmd == nil || !strings.Contains(updated.(model).note, "removed from queue: Second") {
-		t.Fatalf("Delete did not remove selected queue item: cmd=%v note=%q", cmd != nil, updated.(model).note)
+	if cmd == nil {
+		t.Fatal("Delete did not request removal of the selected queue item")
+	}
+	m = updated.(model)
+	m.st.QueueCanUndo = true
+	if _, cmd := m.Update(tea.KeyMsg{Type: tea.KeyCtrlZ}); cmd == nil {
+		t.Fatal("Ctrl+Z did not request undo")
+	}
+	m.st.QueuePos = 0
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'g'}})
+	if updated.(model).selIdx != m.st.QueuePos {
+		t.Fatal("g did not select the current queue track")
 	}
 }
 
@@ -282,5 +292,46 @@ func TestStatsViewFitsSmallAndWideTerminals(t *testing.T) {
 				t.Errorf("Stats view at %dx%d row %d is %d columns", size[0], size[1], i, width)
 			}
 		}
+	}
+}
+
+func TestSearchReturnsFromCollectionToSameResultAndScroll(t *testing.T) {
+	for _, kind := range []string{"album", "artist"} {
+		t.Run(kind, func(t *testing.T) {
+			m := mouseModel(120, 38, 0)
+			m.eng = &engine.Engine{}
+			m.searchOpen, m.sQuery, m.sTerm = true, "same query", "same query"
+			items := make([]engine.Track, 40)
+			items[25] = engine.Track{ID: "selected", Kind: kind}
+			m.sTab, m.sRes.Albums = 2, items
+			if kind == "artist" {
+				m.sTab, m.sRes.Artists = 4, items
+			}
+			m.sSel, m.sOffset = 25, 20
+			tab := m.sTab
+			next, _ := m.activateSearchItem(false)
+			detail := next.(model)
+			if detail.searchOpen || !detail.artistBrowser.open {
+				t.Fatal("Enter did not open the selected collection")
+			}
+			next, _ = detail.artistBack()
+			got := next.(model)
+			if !got.searchOpen || got.sQuery != "same query" || got.sTab != tab ||
+				got.sSel != 25 || got.sOffset != 20 || got.selectedSearchItem().ID != "selected" {
+				t.Fatal("search did not restore the query, category, selection and scroll position")
+			}
+		})
+	}
+}
+
+func TestSearchShowsFirstCategoryWithResults(t *testing.T) {
+	m := mouseModel(120, 38, 0)
+	m.searchOpen, m.sInput, m.sTab = true, true, 1
+	next, _ := m.applyCatalogSearch(catalogSearchMsg{res: engine.SearchResults{
+		Artists: []engine.Track{{ID: "artist", Kind: "artist"}},
+	}})
+	got := next.(model)
+	if got.sInput || got.sTab != 4 || got.selectedSearchItem().ID != "artist" {
+		t.Fatal("search stayed on the empty songs tab")
 	}
 }

@@ -1,12 +1,12 @@
 <p align="center"><img src="assets/lime.png" alt="Lime TUI logo" width="96"></p>
 
-# Lime TUI v1.1.0
+# Lime TUI v1.2.0
 
 **Your music. Your terminal.**
 
 A Spotify terminal player for Windows, combining Pomme's Go/Bubble Tea interface with a native Rust playback engine adapted from spotatui.
 
-[Download Windows setup](https://github.com/trashpenguin/lime-tui/releases/download/v1.1.0/LimeTUI-1.1.0-setup-x64.exe) · [Portable Windows ZIP](https://github.com/trashpenguin/lime-tui/releases/download/v1.1.0/LimeTUI-1.1.0-windows-x64.zip) · [Release notes](https://github.com/trashpenguin/lime-tui/releases/tag/v1.1.0) · [Changelog](CHANGELOG.md)
+[Download Windows setup](https://github.com/trashpenguin/lime-tui/releases/download/v1.2.0/LimeTUI-1.2.0-setup-x64.exe) · [Portable Windows ZIP](https://github.com/trashpenguin/lime-tui/releases/download/v1.2.0/LimeTUI-1.2.0-windows-x64.zip) · [Release notes](https://github.com/trashpenguin/lime-tui/releases/tag/v1.2.0) · [Changelog](CHANGELOG.md)
 
 **Initial preview:** the binaries are unsigned. Spotify distribution authorization and broader clean-machine/hardware qualification remain unresolved. See [release readiness](RELEASE-READINESS.md) and the [Spotify integration review](SPOTIFY-DISTRIBUTION-REVIEW.md). Publishing this repository does not establish Spotify approval.
 
@@ -43,13 +43,13 @@ Windows 10/11 x64 is the supported target. If the portable build reports a missi
 
 `Lime.exe --preview` prints a static sample interface without login, network requests or playback. `--help` shows the controls; `--version` shows the version.
 
-## What's new in v1.1.0
+## What's new in v1.2.0
 
-The mini player now shows album artwork, track details, and a full-width progress bar. Both players highlight active shuffle and repeat.
+Lime restores its queue and current position paused after a restart. Press **Ctrl+Z** to undo the last removal or clear and **g** to jump to the current track. The player identifies Spotify device handoffs and explains how to resume playback on this PC.
 
-In Stats, press **s** to switch between Lime history and Spotify Recent, which ranks tracks, artists, and albums from up to 50 recent Spotify plays. Recently Played also shows when Spotify is syncing or rate-limiting requests. Listening time and streaks use Lime's local history.
+Search opens the first category with results if the selected category is empty. Returning from an album or artist restores your search position. Spotify history is opt-in for each session. Press **H** on the player or switch to Spotify Recent in Stats to load it.
 
-Press **F6** for Audio Quality. Native playback offers 96, 160, and 320 kbps and applies the saved preference after you restart Lime. For Spotify Soloist, choose Lossless through the Spotify mobile app's Connect device settings if the option is available for your Premium account.
+**F6 Audio Quality** shows the saved preference and the preference used for this session. Soloist errors now distinguish pairing, build expiry, and playback rejection. **F12** can export a support report from the startup error screen.
 
 ## Controls
 
@@ -74,6 +74,8 @@ Press **F6** for Audio Quality. Native playback offers 96, 160, and 320 kbps and
 | `s` / `r` or `R` | Shuffle upcoming queue / repeat off → queue → track |
 | Delete / Ctrl+Up / Ctrl+Down | Remove/reorder queue selection |
 | Ctrl+X | Clear the focused queue |
+| Ctrl+Z | Undo the last remove or clear in the focused queue |
+| `g` in the queue | Jump to the current track |
 | `S` twice | Save the queue as a private Spotify playlist |
 | `t` / `v` | Theme / live visualizer mode |
 | `c` | Reload album covers |
@@ -92,7 +94,7 @@ All nine styles support native playback. Soloist visualization uses only Soloist
 When the phone's Spotify app selects Lime as the playback device, native playback
 follows confirmed song changes, including songs outside Lime's current queue.
 
-Windows media keys use the system media session when Windows makes this player active. A handoff to another Spotify device can interrupt local playback; press F5 to reconnect if needed. The queue is managed by this app; editing it from another Spotify Connect client is not synchronized.
+Windows media keys use the system media session when Windows makes this player active. A handoff to another Spotify device can interrupt local playback; press F5 to reconnect if needed. Lime restores the queue, current track, and last checkpointed position paused. Press Space to resume. During playback, Lime checkpoints the position every five seconds. Ctrl+Z can undo the last remove or clear in this session until a subsequent queue edit replaces or invalidates it.
 
 Enabling shuffle rearranges the upcoming queue once; the visible queue shows the actual playback order. Turning shuffle off keeps that order. With repeat off, playback stops at the end of the queue.
 
@@ -111,7 +113,7 @@ If a song still stops, press **F12** soon afterward. Lime writes **Lime-playback
 
 ## Recently played
 
-Lime requests up to 50 recent track plays from [Spotify’s account-history endpoint](https://developer.spotify.com/documentation/web-api/reference/get-recently-played). The panel shows **SPOTIFY** for account results and **LOCAL** for plays observed in Lime when the account endpoint is unavailable. Account history refreshes at most once per minute; `H` requests a refresh without bypassing the cache or a Spotify Retry-After deadline. It is not a full listening-history archive and does not include podcasts.
+Lime requests up to 50 recent track plays from [Spotify’s account-history endpoint](https://developer.spotify.com/documentation/web-api/reference/get-recently-played). The panel shows **SPOTIFY** for account results and **LOCAL** for plays observed in Lime when the account endpoint is unavailable. Account history is opt-in for the current session. Press `H` from the player or select Spotify Recent in Stats to start it. Local Stats opens by default and shows Lime's measured listening time and streaks. Account history refreshes at most once per minute. Repeated rate limits increase the retry delay up to 15 minutes, or longer if Spotify asks for more time; `H` requests a refresh without bypassing the cache or a Spotify Retry-After deadline. It is not a full listening-history archive and does not include podcasts.
 
 In the signed-in test for v1.0.2, Spotify returned HTTP 429, so live account results could not be verified on this account. The app retains playback, labels the local fallback and retries after the server’s cooldown. History metadata and bearer tokens stay in memory; only the rate-limit deadline is saved across restarts.
 
@@ -172,4 +174,4 @@ The optional `scripts/PlaybackSoak.py` requires `--allow-audio`, a cached Premiu
 
 ## Credits and license
 
-Lime TUI builds on [Pomme TUI](https://github.com/trashpenguin/pomme-tui), the MIT frontend from [applemusic-tui](https://github.com/k1y0miiii/applemusic-tui), and [spotatui](https://github.com/LargeModGames/spotatui). All upstream notices remain intact. See [NOTICE.md](NOTICE.md), [LICENSE](LICENSE) and the dependency notices. The backend source retains its upstream package/module versions; the Lime application release is v1.1.0.
+Lime TUI builds on [Pomme TUI](https://github.com/trashpenguin/pomme-tui), the MIT frontend from [applemusic-tui](https://github.com/k1y0miiii/applemusic-tui), and [spotatui](https://github.com/LargeModGames/spotatui). All upstream notices remain intact. See [NOTICE.md](NOTICE.md), [LICENSE](LICENSE) and the dependency notices. The backend source retains its upstream package/module versions; the Lime application release is v1.2.0.

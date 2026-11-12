@@ -10,6 +10,13 @@ use std::{
 use tokio::{process::Child, sync::Notify};
 use tokio_tungstenite::tungstenite::{Message, protocol::WebSocketConfig};
 
+const WAITING_FOR_CONNECT: &str =
+  "Waiting for Spotify Connect. Open Spotify on this network and select Lime Soloist.";
+const BUILD_EXPIRED: &str =
+  "Soloist build expired. Download the current Spotify Soloist build, then run Setup Soloist.";
+const COMMAND_REJECTED: &str =
+  "Soloist rejected playback. Select Lime Soloist in Spotify, then retry the track.";
+
 pub(super) struct Player {
   child: Mutex<Option<Child>>,
   commands: mpsc::Sender<Value>,
@@ -46,7 +53,7 @@ impl Player {
       bail!("Soloist connection ended. Press F5 to reconnect.");
     }
     if !self.paired.load(Ordering::Acquire) {
-      bail!("Open Spotify on the same network and select Lime Soloist in the device menu to pair.");
+      bail!("{WAITING_FOR_CONNECT}");
     }
     self
       .commands
@@ -112,7 +119,10 @@ pub(super) async fn start(backend: &Arc<Backend>, params: &Value) -> Result<()> 
   let pid = child.id().context("Soloist did not start")?;
   let deadline = Instant::now() + Duration::from_secs(30);
   let socket = loop {
-    if child.try_wait()?.is_some() {
+    if let Some(status) = child.try_wait()? {
+      if status.code() == Some(10) {
+        bail!("{BUILD_EXPIRED}");
+      }
       bail!(
         "Soloist exited. Check your API key, build expiry, and whether another Lime instance is running."
       );
@@ -194,11 +204,27 @@ pub(super) async fn start(backend: &Arc<Backend>, params: &Value) -> Result<()> 
         capture.stop();
       }
       if current(&backend, &player).await {
-        let mut q = backend.queue.lock().await;
-        q.freeze();
-        q.error =
-          "Soloist disconnected. Press F5 to reconnect; update Soloist if its build has expired."
-            .into();
+        let expired = {
+          let mut child = player.child.lock().await;
+          if let Some(child) = child.as_mut() {
+            matches!(
+              tokio::time::timeout(Duration::from_millis(250), child.wait()).await,
+              Ok(Ok(status)) if status.code() == Some(10)
+            )
+          } else {
+            false
+          }
+        };
+        if current(&backend, &player).await {
+          let mut q = backend.queue.lock().await;
+          q.freeze();
+          q.error = if expired {
+            BUILD_EXPIRED
+          } else {
+            "Soloist disconnected. Press F5 to reconnect, then retry playback."
+          }
+          .into();
+        }
       }
     }
   });
@@ -250,7 +276,7 @@ async fn current(backend: &Backend, player: &Arc<Player>) -> bool {
     .as_ref()
     .is_some_and(|p| Arc::ptr_eq(p, player))
 }
-pub(super) async fn load(backend: &Backend, player: &Arc<Player>, index: usize) -> Result<()> {
+pub(super) async fn load(backend: &Backend, player: &Arc<Player>, index: usize, position: u64) -> Result<()> {
   let mut q = backend.queue.lock().await;
   if index >= q.tracks.len() {
     bail!("Queue position is out of range");
@@ -260,14 +286,16 @@ pub(super) async fn load(backend: &Backend, player: &Arc<Player>, index: usize) 
   player.send(json!({"type":"command", "command":"play", "uri":uri}))?;
   q.freeze();
   q.index = index;
-  q.position = 0;
+  q.position = position.min(q.tracks[index].dur_ms);
+  q.soloist_resume_at = Some(q.position).filter(|position| *position > 0);
   q.loading = true;
   q.play_intent = true;
   q.error.clear();
   q.generation = q.generation.wrapping_add(1);
   q.request_id = None;
   q.soloist_track_confirmed = false;
-  q.trace.push("load_sent", None, Some(true), 0);
+  let position = q.position;
+  q.trace.push("load_sent", None, Some(true), position);
   Ok(())
 }
 pub(super) fn command(name: &str) -> Value {
@@ -313,7 +341,7 @@ async fn advance_queue(
     }
   }
   if let Some(index) = next {
-    if let Err(error) = load(backend, player, index).await {
+    if let Err(error) = load(backend, player, index, 0).await {
       backend.playback_error(error).await;
     }
   }
@@ -330,9 +358,7 @@ async fn apply(backend: &Arc<Backend>, player: &Arc<Player>, value: &Value) {
     let mut q = backend.queue.lock().await;
     if !paired {
       q.freeze();
-      q.error =
-        "Pair Soloist: open Spotify on this network and select Lime Soloist in its device menu."
-          .into();
+      q.error = WAITING_FOR_CONNECT.into();
     } else {
       q.error.clear();
     }
@@ -345,14 +371,24 @@ async fn apply(backend: &Arc<Backend>, player: &Arc<Player>, value: &Value) {
   if kind == "error" {
     let mut q = backend.queue.lock().await;
     q.freeze();
-    q.error =
-      "Soloist rejected the playback command. Check pairing, then press F5 to reconnect.".into();
+    q.error = if !player.paired.load(Ordering::Acquire)
+      || text(value, "message") == "command requires authentication"
+    {
+      WAITING_FOR_CONNECT
+    } else {
+      COMMAND_REJECTED
+    }
+    .into();
     return;
   }
   let mut q = backend.queue.lock().await;
   let reports_track = matches!(kind, "playback_state" | "track_changed");
   if reports_track && value["is_active"].as_bool() == Some(false) {
-    q.freeze();
+    if q.soloist_track_confirmed || q.playing {
+      q.external_device = true;
+      q.freeze();
+      q.soloist_track_confirmed = false;
+    }
     return;
   }
   let uri = text(&value["item"], "uri");
@@ -366,13 +402,26 @@ async fn apply(backend: &Arc<Backend>, player: &Arc<Player>, value: &Value) {
   } else {
     IDLE_END_WINDOW_MS
   };
-  if (rollover || idle) && at_track_end(&q, tolerance) {
+  if q.soloist_resume_at.is_none() && (rollover || idle) && at_track_end(&q, tolerance) {
     let generation = q.generation;
     drop(q);
     advance_queue(backend, player, generation, rollover, tolerance).await;
     return;
   }
 
+  let matching_playback = status == "playing" && !rollover && q.play_intent
+    && (q.soloist_track_confirmed || (reports_track && !uri.is_empty()));
+  if let Some(position) = q.soloist_resume_at.filter(|_| matching_playback) {
+    q.soloist_resume_at = None;
+    if let Err(error) = player.send(json!({"type":"command","command":"seek","position_ms":position})) {
+      q.freeze();
+      q.error = error.to_string();
+      return;
+    }
+    q.soloist_track_confirmed = true;
+    apply_status(&mut q, status, position);
+    return;
+  }
   match kind {
     "playback_state" | "track_changed" => {
       if rollover {
@@ -421,8 +470,14 @@ async fn apply(backend: &Arc<Backend>, player: &Arc<Player>, value: &Value) {
       }
     }
     "device_changed" if value["is_active"].as_bool() == Some(false) => {
-      q.freeze();
-      q.trace.push("handoff", None, Some(true), 0);
+      if q.soloist_track_confirmed || q.playing {
+        q.external_device = true;
+        q.trace.push("handoff", None, Some(true), 0);
+      }
+      if !q.loading || q.soloist_track_confirmed {
+        q.freeze();
+        q.soloist_track_confirmed = false;
+      }
     }
     _ => {}
   }
@@ -439,6 +494,7 @@ fn anchor_position(value: &Value) -> Option<u64> {
 fn apply_status(q: &mut Queue, status: &str, position: u64) {
   match status {
     "playing" if q.play_intent => {
+      q.external_device = false;
       q.reset_clock(position, true);
       q.play_intent = true;
       q.error.clear();
@@ -530,7 +586,7 @@ mod tests {
   #[tokio::test]
   async fn dispatch_waits_for_matching_track_and_real_playback() {
     let (backend, player, mut rx) = fixture().await;
-    load(&backend, &player, 0).await.unwrap();
+    load(&backend, &player, 0, 0).await.unwrap();
     assert_eq!(rx.recv().await.unwrap()["command"], "activate");
     let sent = rx.recv().await.unwrap();
     assert_eq!(sent["command"], "play");
@@ -565,7 +621,7 @@ mod tests {
   #[tokio::test]
   async fn retirement_pause_and_handoff_do_not_reclaim_playback() {
     let (backend, player, mut rx) = fixture().await;
-    load(&backend, &player, 0).await.unwrap();
+    load(&backend, &player, 0, 0).await.unwrap();
     rx.recv().await.unwrap();
     rx.recv().await.unwrap();
     backend.queue.lock().await.freeze();

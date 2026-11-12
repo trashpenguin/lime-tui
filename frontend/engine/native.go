@@ -168,14 +168,15 @@ func (e *Engine) State() (State, error) {
 		Now                                       *wireTrack
 		Queue                                     []wireTrack
 		QueuePos                                  int
-		PlaybackEngine                            string
+		PlaybackEngine, PlaybackDevice            string
+		QueueCanUndo                              bool
 		Err                                       string
 	}
 	if err := e.call("state", nil, &raw); err != nil {
 		return State{}, err
 	}
 	state := State{Authed: raw.Authed, Playing: raw.Playing, Initializing: raw.Initializing, Recovering: raw.Recovering, Pos: time.Duration(raw.PosMs) * time.Millisecond, Dur: time.Duration(raw.DurMs) * time.Millisecond,
-		Volume: raw.Volume, Shuffle: raw.Shuffle, Repeat: raw.Repeat, Queue: tracks(raw.Queue), QueuePos: raw.QueuePos, Err: raw.Err, PlaybackEngine: raw.PlaybackEngine}
+		Volume: raw.Volume, Shuffle: raw.Shuffle, Repeat: raw.Repeat, Queue: tracks(raw.Queue), QueuePos: raw.QueuePos, Err: raw.Err, PlaybackEngine: raw.PlaybackEngine, PlaybackDevice: raw.PlaybackDevice, QueueCanUndo: raw.QueueCanUndo}
 	if raw.Now != nil {
 		state.Now = raw.Now.track()
 	}

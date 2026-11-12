@@ -714,6 +714,9 @@ func (m model) artistBrowserView() string {
 			hints = b.notice
 		}
 		backHints := "Tab Songs/Albums · / Search · r Retry · Esc Back"
+		if b.mode == artistDetail && b.origin == artistFromSearch {
+			backHints = "Tab Songs/Albums · r Retry · Esc Search results"
+		}
 		if b.mode == artistAlbum {
 			backHints = "/ Search · r Retry · Esc Back to artist"
 			if b.origin == artistFromPlaylists {
@@ -723,7 +726,7 @@ func (m model) artistBrowserView() string {
 			} else if b.origin == artistFromStatsAlbum {
 				backHints = "/ Search · r Retry · Esc Stats"
 			} else if b.origin == artistFromSearch && b.profile.ID == "" {
-				backHints = "/ Search · r Retry · Esc Search"
+				backHints = "/ Search · r Retry · Esc Search results"
 			}
 		}
 		content = bright.Render(fit(title)) + "\n" + hero + "\n\n" + pad(tabs, l.width) + "\n\n" + body + "\n" + faint.Render(fit(hints)) + "\n" + faint.Render(fit(backHints))
