@@ -1,12 +1,12 @@
 <p align="center"><img src="assets/lime.png" alt="Lime TUI logo" width="96"></p>
 
-# Lime TUI v1.2.0
+# Lime TUI v1.1.1
 
 **Your music. Your terminal.**
 
 A Spotify terminal player for Windows, combining Pomme's Go/Bubble Tea interface with a native Rust playback engine adapted from spotatui.
 
-[Download Windows setup](https://github.com/trashpenguin/lime-tui/releases/download/v1.2.0/LimeTUI-1.2.0-setup-x64.exe) · [Portable Windows ZIP](https://github.com/trashpenguin/lime-tui/releases/download/v1.2.0/LimeTUI-1.2.0-windows-x64.zip) · [Release notes](https://github.com/trashpenguin/lime-tui/releases/tag/v1.2.0) · [Changelog](CHANGELOG.md)
+[Download Windows setup](https://github.com/trashpenguin/lime-tui/releases/download/v1.1.1/LimeTUI-1.1.1-setup-x64.exe) · [Portable Windows ZIP](https://github.com/trashpenguin/lime-tui/releases/download/v1.1.1/LimeTUI-1.1.1-windows-x64.zip) · [Release notes](https://github.com/trashpenguin/lime-tui/releases/tag/v1.1.1) · [Changelog](CHANGELOG.md)
 
 **Initial preview:** the binaries are unsigned. Spotify distribution authorization and broader clean-machine/hardware qualification remain unresolved. See [release readiness](RELEASE-READINESS.md) and the [Spotify integration review](SPOTIFY-DISTRIBUTION-REVIEW.md). Publishing this repository does not establish Spotify approval.
 
@@ -43,7 +43,7 @@ Windows 10/11 x64 is the supported target. If the portable build reports a missi
 
 `Lime.exe --preview` prints a static sample interface without login, network requests or playback. `--help` shows the controls; `--version` shows the version.
 
-## What's new in v1.2.0
+## What's new in v1.1.1
 
 Lime restores its queue and current position paused after a restart. Press **Ctrl+Z** to undo the last removal or clear and **g** to jump to the current track. The player identifies Spotify device handoffs and explains how to resume playback on this PC.
 
@@ -174,4 +174,4 @@ The optional `scripts/PlaybackSoak.py` requires `--allow-audio`, a cached Premiu
 
 ## Credits and license
 
-Lime TUI builds on [Pomme TUI](https://github.com/trashpenguin/pomme-tui), the MIT frontend from [applemusic-tui](https://github.com/k1y0miiii/applemusic-tui), and [spotatui](https://github.com/LargeModGames/spotatui). All upstream notices remain intact. See [NOTICE.md](NOTICE.md), [LICENSE](LICENSE) and the dependency notices. The backend source retains its upstream package/module versions; the Lime application release is v1.2.0.
+Lime TUI builds on [Pomme TUI](https://github.com/trashpenguin/pomme-tui), the MIT frontend from [applemusic-tui](https://github.com/k1y0miiii/applemusic-tui), and [spotatui](https://github.com/LargeModGames/spotatui). All upstream notices remain intact. See [NOTICE.md](NOTICE.md), [LICENSE](LICENSE) and the dependency notices. The backend source retains its upstream package/module versions; the Lime application release is v1.1.1.
